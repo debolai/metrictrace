@@ -8,12 +8,16 @@ recorded in [`docs/decisions/`](docs/decisions/).
 ## Quick start (development)
 
 ```bash
-uv sync                      # install pinned dependencies
+make install                 # pinned dependencies + DuckDB extensions (one-time download)
 cp .env.example .env         # then fill in the values marked "set me"
 make check-env               # validate configuration without starting anything
+make up                      # RustFS object store + lake bucket (console: http://localhost:9001)
 make lint                    # ruff, mypy --strict, sqlfluff
-make test-unit
+make test-unit               # no network, no running services
+make test-lake               # lake integration tests against the running stack
 ```
+
+`make down` stops the stack and keeps the data; `make clean-lake` deletes the local lake.
 
 ## Data licence
 

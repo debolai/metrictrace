@@ -1,0 +1,54 @@
+# Local stack. Values come from .env; URLs are overridden with service names here
+# because .env holds the laptop's view (localhost).
+name: metrictrace
+
+x-lake-credentials: &lake-credentials
+  AWS_ACCESS_KEY_ID: ${RUSTFS_ACCESS_KEY:?set RUSTFS_ACCESS_KEY in .env}
+  AWS_SECRET_ACCESS_KEY: ${RUSTFS_SECRET_KEY:?set RUSTFS_SECRET_KEY in .env}
+  AWS_DEFAULT_REGION: ${AWS_REGION:-us-east-1}
+
+services:
+  # S3-compatible object store standing in for S3 (MinIO replacement, see decision 0002).
+  rustfs:
+    image: rustfs/rustfs:1.0.1
+    environment:
+      RUSTFS_ACCESS_KEY: ${RUSTFS_ACCESS_KEY:?set RUSTFS_ACCESS_KEY in .env}
+      RUSTFS_SECRET_KEY: ${RUSTFS_SECRET_KEY:?set RUSTFS_SECRET_KEY in .env}
+      RUSTFS_ADDRESS: 0.0.0.0:9000
+      RUSTFS_CONSOLE_ENABLE: "true"
+      RUSTFS_CONSOLE_ADDRESS: 0.0.0.0:9001
+    ports:
+      - "127.0.0.1:9000:9000" # S3 API
+      - "127.0.0.1:9001:9001" # console
+    volumes:
+      - lake-data:/data
+    security_opt:
+      - no-new-privileges:true
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:9000/health"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 10s
+    restart: unless-stopped
+
+  # One-shot: creates the lake bucket if it does not exist (idempotent).
+  lake-init:
+    image: amazon/aws-cli:2.37.12
+    profiles: [init]
+    depends_on:
+      rustfs:
+        condition: service_healthy
+    environment:
+      <<: *lake-credentials
+      LAKE_BUCKET: ${LAKE_BUCKET:?set LAKE_BUCKET in .env}
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - >
+        aws --endpoint-url http://rustfs:9000 s3api head-bucket --bucket "$$LAKE_BUCKET" 2>/dev/null
+        && echo "bucket $$LAKE_BUCKET exists"
+        || (aws --endpoint-url http://rustfs:9000 s3api create-bucket --bucket "$$LAKE_BUCKET"
+        && echo "bucket $$LAKE_BUCKET created")
+
+volumes:
+  lake-data:
