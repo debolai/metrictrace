@@ -1,0 +1,41 @@
+cubes:
+  - name: base_reviews
+    description: One row per review per order (dbt mart fct_reviews).
+    sql: {{ mart('fct_reviews') }}
+    public: false
+    refresh_key:
+      sql: {{ latest_dbt_run() }}
+
+    joins:
+      - name: base_dates
+        relationship: many_to_one
+        sql: "{CUBE}.purchase_date = {base_dates}.date_day"
+
+    dimensions:
+      - name: review_key
+        sql: review_key
+        type: string
+        primary_key: true
+      - name: purchase_date
+        sql: purchase_date
+        type: time
+      - name: customer_state
+        sql: customer_state
+        type: string
+
+    measures:
+      - name: reviews
+        type: count
+      - name: negative_reviews
+        type: count
+        filters:
+          - sql: "{CUBE}.is_negative"
+      - name: total_review_score
+        sql: review_score
+        type: sum
+      - name: avg_review_score
+        type: number
+        sql: "1.0 * {CUBE.total_review_score} / NULLIF({CUBE.reviews}, 0)"
+      - name: negative_review_rate
+        type: number
+        sql: "1.0 * {CUBE.negative_reviews} / NULLIF({CUBE.reviews}, 0)"

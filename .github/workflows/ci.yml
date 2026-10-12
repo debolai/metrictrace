@@ -28,8 +28,8 @@ jobs:
       API_URL: http://api:8000
       LLM_PROVIDER: fake
       LLM_MODEL: fake
-      CUBE_API_SECRET: ci-cube-secret
-      API_BEARER_TOKEN: ci-bearer-token
+      CUBE_API_SECRET: ci-cube-secret-not-for-production-use-0001
+      API_BEARER_TOKEN: ci-bearer-token-not-for-production-use-001
       SIM_START_DATE: "2017-01-01"
       SIM_END_DATE: "2018-08-31"
     steps:
@@ -43,19 +43,9 @@ jobs:
       - run: make test-unit
 
   lake:
+    # The job name is a required status check on main; keep it unchanged.
     name: Lake integration (RustFS)
     runs-on: ubuntu-latest
-    services:
-      rustfs:
-        image: rustfs/rustfs:1.0.1
-        env:
-          RUSTFS_ACCESS_KEY: ci
-          RUSTFS_SECRET_KEY: ci-password
-        ports:
-          - 9000:9000
-        options: >-
-          --health-cmd "curl -fsS http://127.0.0.1:9000/health"
-          --health-interval 5s --health-timeout 5s --health-retries 12
     env:
       APP_ENV: local
       LAKE_BUCKET: metrictrace-lake
@@ -67,8 +57,8 @@ jobs:
       API_URL: http://localhost:8000
       LLM_PROVIDER: fake
       LLM_MODEL: fake
-      CUBE_API_SECRET: ci-cube-secret
-      API_BEARER_TOKEN: ci-bearer-token
+      CUBE_API_SECRET: ci-cube-secret-not-for-production-use-0001
+      API_BEARER_TOKEN: ci-bearer-token-not-for-production-use-001
       SIM_START_DATE: "2017-01-01"
       SIM_END_DATE: "2018-08-31"
     steps:
@@ -77,11 +67,13 @@ jobs:
         with:
           enable-cache: true
       - run: make install
-      - name: Create lake bucket
-        env:
-          AWS_ACCESS_KEY_ID: ci
-          AWS_SECRET_ACCESS_KEY: ci-password
-        run: aws --endpoint-url http://localhost:9000 s3api create-bucket --bucket "$LAKE_BUCKET"
+      # The same Compose stack as local development: RustFS, the lake bucket, then Cube.
+      - run: docker compose up -d --wait rustfs
+      - run: docker compose run --rm lake-init
       - run: make test-lake
       - run: make test-ingestion
       - run: make test-dbt
+      - run: make test-semantic
+      - name: Service logs on failure
+        if: failure()
+        run: docker compose logs --tail 200

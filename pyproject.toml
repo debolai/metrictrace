@@ -16,6 +16,8 @@ dependencies = [
     "pyarrow>=26.0.0",
     "pydantic>=2.14.1",
     "pydantic-settings>=2.15.0",
+    "pyjwt>=2.15.1",
+    "pyyaml>=6.0.3",
     "s3fs>=2026.9.0",
     "tenacity>=9.2.1",
 ]
@@ -42,6 +44,7 @@ dev = [
     "ruff>=0.17.0",
     "sqlfluff>=4.4.0",
     "sqlfluff-templater-dbt>=4.4.0",
+    "types-pyyaml>=6.0.12.20260906",
 ]
 
 [tool.ruff]

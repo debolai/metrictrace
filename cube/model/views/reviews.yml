@@ -1,0 +1,66 @@
+views:
+- name: reviews
+  description: Customer review metrics.
+  cubes:
+  - join_path: base_reviews
+    includes:
+    - name: avg_review_score
+      title: Average review score
+      description: Mean review score (1-5) of reviews received. All metrics use purchase date as their
+        time dimension.
+      meta:
+        kind: metric
+        unit: score
+        synonyms:
+        - rating
+        - review score
+        - satisfaction
+        - csat
+        higher_is_better: true
+        owner: analytics-engineering
+        grain: review
+        maturity_days: 45
+        decomposable_by:
+        - customer_state
+        metric_type: average
+        numerator: total_review_score
+        denominator: reviews
+    - name: negative_review_rate
+      title: Negative review rate
+      description: Reviews scored 1 or 2 divided by all reviews received. All metrics use purchase date
+        as their time dimension.
+      meta:
+        kind: metric
+        unit: ratio
+        synonyms:
+        - bad reviews
+        - detractors
+        - negative reviews
+        higher_is_better: false
+        owner: analytics-engineering
+        grain: review
+        maturity_days: 45
+        decomposable_by:
+        - customer_state
+        metric_type: ratio
+        numerator: negative_reviews
+        denominator: reviews
+    - name: reviews
+      description: Reviews received.
+      meta:
+        kind: component
+        owner: analytics-engineering
+    - name: negative_reviews
+      description: Reviews scored 1 or 2.
+      meta:
+        kind: component
+        owner: analytics-engineering
+    - name: total_review_score
+      description: Sum of review scores.
+      meta:
+        kind: component
+        owner: analytics-engineering
+    - name: purchase_date
+      description: Order purchase day; the time dimension of every metric.
+    - name: customer_state
+      description: Customer state (UF).

@@ -1,0 +1,1110 @@
+{
+ "cubes": [
+  {
+   "description": "Order-level metrics: volume, cancellations, delivery and customers.",
+   "dimensions": [
+    {
+     "aliasMember": "base_orders.purchase_date",
+     "description": "Order purchase day; the time dimension of every metric.",
+     "isVisible": true,
+     "name": "orders.purchase_date",
+     "primaryKey": false,
+     "public": true,
+     "shortTitle": "Purchase Date",
+     "suggestFilterValues": true,
+     "title": "Orders Purchase Date",
+     "type": "time"
+    },
+    {
+     "aliasMember": "base_orders.customer_state",
+     "description": "Customer state (UF).",
+     "isVisible": true,
+     "name": "orders.customer_state",
+     "primaryKey": false,
+     "public": true,
+     "shortTitle": "Customer State",
+     "suggestFilterValues": true,
+     "title": "Orders Customer State",
+     "type": "string"
+    },
+    {
+     "aliasMember": "base_orders.order_status",
+     "description": "Current order status.",
+     "isVisible": true,
+     "name": "orders.order_status",
+     "primaryKey": false,
+     "public": true,
+     "shortTitle": "Order Status",
+     "suggestFilterValues": true,
+     "title": "Orders Order Status",
+     "type": "string"
+    },
+    {
+     "aliasMember": "base_dates.is_holiday",
+     "description": "Purchased on a Brazilian public holiday.",
+     "isVisible": true,
+     "name": "orders.is_holiday",
+     "primaryKey": false,
+     "public": true,
+     "shortTitle": "Is Holiday",
+     "suggestFilterValues": true,
+     "title": "Orders Is Holiday",
+     "type": "boolean"
+    }
+   ],
+   "folders": [],
+   "hierarchies": [],
+   "isVisible": true,
+   "measures": [
+    {
+     "aggType": "count",
+     "aliasMember": "base_orders.orders",
+     "cumulative": false,
+     "cumulativeTotal": false,
+     "description": "Count of orders, all statuses. All metrics use purchase date as their time dimension.",
+     "drillMembers": [],
+     "drillMembersGrouped": {
+      "dimensions": [],
+      "measures": []
+     },
+     "formatDescription": {
+      "name": "number",
+      "specifier": ",.2~f"
+     },
+     "isVisible": true,
+     "meta": {
+      "decomposableBy": [
+       "customer_state",
+       "is_holiday"
+      ],
+      "grain": "order",
+      "higherIsBetter": true,
+      "kind": "metric",
+      "maturityDays": 0,
+      "metricType": "count",
+      "owner": "analytics-engineering",
+      "synonyms": [
+       "order count",
+       "number of orders",
+       "volume"
+      ],
+      "unit": "orders"
+     },
+     "name": "orders.orders",
+     "public": true,
+     "shortTitle": "Orders",
+     "title": "Orders Orders",
+     "type": "number"
+    },
+    {
+     "aggType": "number",
+     "aliasMember": "base_orders.aov",
+     "cumulative": false,
+     "cumulativeTotal": false,
+     "description": "GMV divided by non-cancelled orders, in BRL. All metrics use purchase date as their time dimension.",
+     "drillMembers": [],
+     "drillMembersGrouped": {
+      "dimensions": [],
+      "measures": []
+     },
+     "formatDescription": {
+      "name": "number",
+      "specifier": ",.2~f"
+     },
+     "isVisible": true,
+     "meta": {
+      "decomposableBy": [
+       "customer_state",
+       "is_holiday"
+      ],
+      "denominator": "non_cancelled_orders",
+      "grain": "order",
+      "higherIsBetter": true,
+      "kind": "metric",
+      "maturityDays": 0,
+      "metricType": "ratio",
+      "numerator": "gmv",
+      "owner": "analytics-engineering",
+      "synonyms": [
+       "average order value",
+       "basket size",
+       "average basket"
+      ],
+      "unit": "BRL"
+     },
+     "name": "orders.aov",
+     "public": true,
+     "shortTitle": "Average order value",
+     "title": "Orders Average order value",
+     "type": "number"
+    },
+    {
+     "aggType": "number",
+     "aliasMember": "base_orders.cancellation_rate",
+     "cumulative": false,
+     "cumulativeTotal": false,
+     "description": "Cancelled orders (canceled or unavailable) divided by all orders. All metrics use purchase date as their time dimension.",
+     "drillMembers": [],
+     "drillMembersGrouped": {
+      "dimensions": [],
+      "measures": []
+     },
+     "formatDescription": {
+      "name": "number",
+      "specifier": ",.2~f"
+     },
+     "isVisible": true,
+     "meta": {
+      "decomposableBy": [
+       "customer_state",
+       "is_holiday"
+      ],
+      "denominator": "orders",
+      "grain": "order",
+      "higherIsBetter": false,
+      "kind": "metric",
+      "maturityDays": 30,
+      "metricType": "ratio",
+      "numerator": "cancelled_orders",
+      "owner": "analytics-engineering",
+      "synonyms": [
+       "cancellations",
+       "cancel rate"
+      ],
+      "unit": "ratio"
+     },
+     "name": "orders.cancellation_rate",
+     "public": true,
+     "shortTitle": "Cancellation rate",
+     "title": "Orders Cancellation rate",
+     "type": "number"
+    },
+    {
+     "aggType": "number",
+     "aliasMember": "base_orders.on_time_delivery_rate",
+     "cumulative": false,
+     "cumulativeTotal": false,
+     "description": "Delivered orders whose delivery date is on or before the estimated date, divided by delivered orders with a delivery date. All metrics use purchase date as their time dimension.",
+     "drillMembers": [],
+     "drillMembersGrouped": {
+      "dimensions": [],
+      "measures": []
+     },
+     "formatDescription": {
+      "name": "number",
+      "specifier": ",.2~f"
+     },
+     "isVisible": true,
+     "meta": {
+      "decomposableBy": [
+       "customer_state",
+       "is_holiday"
+      ],
+      "denominator": "delivered_orders",
+      "grain": "order",
+      "higherIsBetter": true,
+      "kind": "metric",
+      "maturityDays": 60,
+      "metricType": "ratio",
+      "numerator": "on_time_orders",
+      "owner": "analytics-engineering",
+      "synonyms": [
+       "on time",
+       "otd",
+       "delivery performance",
+       "late deliveries"
+      ],
+      "unit": "ratio"
+     },
+     "name": "orders.on_time_delivery_rate",
+     "public": true,
+     "shortTitle": "On-time delivery rate",
+     "title": "Orders On-time delivery rate",
+     "type": "number"
+    },
+    {
+     "aggType": "number",
+     "aliasMember": "base_orders.avg_delivery_days",
+     "cumulative": false,
+     "cumulativeTotal": false,
+     "description": "Mean days from purchase date to delivery date, over delivered orders with a delivery date. All metrics use purchase date as their time dimension.",
+     "drillMembers": [],
+     "drillMembersGrouped": {
+      "dimensions": [],
+      "measures": []
+     },
+     "formatDescription": {
+      "name": "number",
+      "specifier": ",.2~f"
+     },
+     "isVisible": true,
+     "meta": {
+      "decomposableBy": [
+       "customer_state",
+       "is_holiday"
+      ],
+      "denominator": "delivered_orders",
+      "grain": "order",
+      "higherIsBetter": false,
+      "kind": "metric",
+      "maturityDays": 60,
+      "metricType": "average",
+      "numerator": "total_delivery_days",
+      "owner": "analytics-engineering",
+      "synonyms": [
+       "delivery time",
+       "shipping time",
+       "lead time"
+      ],
+      "unit": "days"
+     },
+     "name": "orders.avg_delivery_days",
+     "public": true,
+     "shortTitle": "Average delivery days",
+     "title": "Orders Average delivery days",
+     "type": "number"
+    },
+    {
+     "aggType": "number",
+     "aliasMember": "base_orders.returning_customer_rate",
+     "cumulative": false,
+     "cumulativeTotal": false,
+     "description": "People (customer_unique_id) with an order in the period that is not their first in the replay, divided by people with an order in the period. All metrics use purchase date as their time dimension. Not decomposable: one person can order from several states in a period, so per-state counts of people do not add up to the total.",
+     "drillMembers": [],
+     "drillMembersGrouped": {
+      "dimensions": [],
+      "measures": []
+     },
+     "formatDescription": {
+      "name": "number",
+      "specifier": ",.2~f"
+     },
+     "isVisible": true,
+     "meta": {
+      "decomposableBy": [],
+      "denominator": "customers",
+      "grain": "customer",
+      "higherIsBetter": true,
+      "kind": "metric",
+      "maturityDays": 0,
+      "metricType": "ratio",
+      "numerator": "returning_customers",
+      "owner": "analytics-engineering",
+      "synonyms": [
+       "repeat customers",
+       "repeat rate",
+       "retention"
+      ],
+      "unit": "ratio"
+     },
+     "name": "orders.returning_customer_rate",
+     "public": true,
+     "shortTitle": "Returning customer rate",
+     "title": "Orders Returning customer rate",
+     "type": "number"
+    },
+    {
+     "aggType": "count",
+     "aliasMember": "base_orders.cancelled_orders",
+     "cumulative": false,
+     "cumulativeTotal": false,
+     "description": "Orders with status canceled or unavailable.",
+     "drillMembers": [],
+     "drillMembersGrouped": {
+      "dimensions": [],
+      "measures": []
+     },
+     "formatDescription": {
+      "name": "number",
+      "specifier": ",.2~f"
+     },
+     "isVisible": true,
+     "meta": {
+      "kind": "component",
+      "owner": "analytics-engineering"
+     },
+     "name": "orders.cancelled_orders",
+     "public": true,
+     "shortTitle": "Cancelled Orders",
+     "title": "Orders Cancelled Orders",
+     "type": "number"
+    },
+    {
+     "aggType": "count",
+     "aliasMember": "base_orders.non_cancelled_orders",
+     "cumulative": false,
+     "cumulativeTotal": false,
+     "description": "Orders not cancelled.",
+     "drillMembers": [],
+     "drillMembersGrouped": {
+      "dimensions": [],
+      "measures": []
+     },
+     "formatDescription": {
+      "name": "number",
+      "specifier": ",.2~f"
+     },
+     "isVisible": true,
+     "meta": {
+      "kind": "component",
+      "owner": "analytics-engineering"
+     },
+     "name": "orders.non_cancelled_orders",
+     "public": true,
+     "shortTitle": "Non Cancelled Orders",
+     "title": "Orders Non Cancelled Orders",
+     "type": "number"
+    },
+    {
+     "aggType": "count",
+     "aliasMember": "base_orders.delivered_orders",
+     "cumulative": false,
+     "cumulativeTotal": false,
+     "description": "Delivered orders with a known delivery date.",
+     "drillMembers": [],
+     "drillMembersGrouped": {
+      "dimensions": [],
+      "measures": []
+     },
+     "formatDescription": {
+      "name": "number",
+      "specifier": ",.2~f"
+     },
+     "isVisible": true,
+     "meta": {
+      "kind": "component",
+      "owner": "analytics-engineering"
+     },
+     "name": "orders.delivered_orders",
+     "public": true,
+     "shortTitle": "Delivered Orders",
+     "title": "Orders Delivered Orders",
+     "type": "number"
+    },
+    {
+     "aggType": "count",
+     "aliasMember": "base_orders.on_time_orders",
+     "cumulative": false,
+     "cumulativeTotal": false,
+     "description": "Delivered orders delivered on or before the estimated date.",
+     "drillMembers": [],
+     "drillMembersGrouped": {
+      "dimensions": [],
+      "measures": []
+     },
+     "formatDescription": {
+      "name": "number",
+      "specifier": ",.2~f"
+     },
+     "isVisible": true,
+     "meta": {
+      "kind": "component",
+      "owner": "analytics-engineering"
+     },
+     "name": "orders.on_time_orders",
+     "public": true,
+     "shortTitle": "On Time Orders",
+     "title": "Orders On Time Orders",
+     "type": "number"
+    },
+    {
+     "aggType": "sum",
+     "aliasMember": "base_orders.total_delivery_days",
+     "cumulative": false,
+     "cumulativeTotal": false,
+     "description": "Sum of delivery days over delivered orders with a delivery date.",
+     "drillMembers": [],
+     "drillMembersGrouped": {
+      "dimensions": [],
+      "measures": []
+     },
+     "formatDescription": {
+      "name": "number",
+      "specifier": ",.2~f"
+     },
+     "isVisible": true,
+     "meta": {
+      "kind": "component",
+      "owner": "analytics-engineering"
+     },
+     "name": "orders.total_delivery_days",
+     "public": true,
+     "shortTitle": "Total Delivery Days",
+     "title": "Orders Total Delivery Days",
+     "type": "number"
+    },
+    {
+     "aggType": "countDistinct",
+     "aliasMember": "base_orders.customers",
+     "cumulative": false,
+     "cumulativeTotal": false,
+     "description": "Distinct people with an order.",
+     "drillMembers": [],
+     "drillMembersGrouped": {
+      "dimensions": [],
+      "measures": []
+     },
+     "formatDescription": {
+      "name": "number",
+      "specifier": ",.2~f"
+     },
+     "isVisible": true,
+     "meta": {
+      "kind": "component",
+      "owner": "analytics-engineering"
+     },
+     "name": "orders.customers",
+     "public": true,
+     "shortTitle": "Customers",
+     "title": "Orders Customers",
+     "type": "number"
+    },
+    {
+     "aggType": "countDistinct",
+     "aliasMember": "base_orders.returning_customers",
+     "cumulative": false,
+     "cumulativeTotal": false,
+     "description": "Distinct people with an order that is not their first.",
+     "drillMembers": [],
+     "drillMembersGrouped": {
+      "dimensions": [],
+      "measures": []
+     },
+     "formatDescription": {
+      "name": "number",
+      "specifier": ",.2~f"
+     },
+     "isVisible": true,
+     "meta": {
+      "kind": "component",
+      "owner": "analytics-engineering"
+     },
+     "name": "orders.returning_customers",
+     "public": true,
+     "shortTitle": "Returning Customers",
+     "title": "Orders Returning Customers",
+     "type": "number"
+    },
+    {
+     "aggType": "sum",
+     "aliasMember": "base_order_items.gmv",
+     "cumulative": false,
+     "cumulativeTotal": false,
+     "description": "GMV, the numerator of AOV.",
+     "drillMembers": [],
+     "drillMembersGrouped": {
+      "dimensions": [],
+      "measures": []
+     },
+     "formatDescription": {
+      "name": "number",
+      "specifier": ",.2~f"
+     },
+     "isVisible": true,
+     "meta": {
+      "kind": "component",
+      "owner": "analytics-engineering"
+     },
+     "name": "orders.gmv",
+     "public": true,
+     "shortTitle": "Gmv",
+     "title": "Orders Gmv",
+     "type": "number"
+    }
+   ],
+   "name": "orders",
+   "nestedFolders": [],
+   "public": true,
+   "segments": [],
+   "title": "Orders",
+   "type": "view"
+  },
+  {
+   "description": "Payment-level metrics.",
+   "dimensions": [
+    {
+     "aliasMember": "base_payments.purchase_date",
+     "description": "Order purchase day; the time dimension of every metric.",
+     "isVisible": true,
+     "name": "payments.purchase_date",
+     "primaryKey": false,
+     "public": true,
+     "shortTitle": "Purchase Date",
+     "suggestFilterValues": true,
+     "title": "Payments Purchase Date",
+     "type": "time"
+    },
+    {
+     "aliasMember": "base_payments.payment_type",
+     "description": "Payment method.",
+     "isVisible": true,
+     "name": "payments.payment_type",
+     "primaryKey": false,
+     "public": true,
+     "shortTitle": "Payment Type",
+     "suggestFilterValues": true,
+     "title": "Payments Payment Type",
+     "type": "string"
+    },
+    {
+     "aliasMember": "base_payments.customer_state",
+     "description": "Customer state (UF).",
+     "isVisible": true,
+     "name": "payments.customer_state",
+     "primaryKey": false,
+     "public": true,
+     "shortTitle": "Customer State",
+     "suggestFilterValues": true,
+     "title": "Payments Customer State",
+     "type": "string"
+    },
+    {
+     "aliasMember": "base_dates.is_holiday",
+     "description": "Purchased on a Brazilian public holiday.",
+     "isVisible": true,
+     "name": "payments.is_holiday",
+     "primaryKey": false,
+     "public": true,
+     "shortTitle": "Is Holiday",
+     "suggestFilterValues": true,
+     "title": "Payments Is Holiday",
+     "type": "boolean"
+    }
+   ],
+   "folders": [],
+   "hierarchies": [],
+   "isVisible": true,
+   "measures": [
+    {
+     "aggType": "sum",
+     "aliasMember": "base_payments.payments_collected",
+     "cumulative": false,
+     "cumulativeTotal": false,
+     "description": "Sum of payment value on non-cancelled orders, in BRL (includes installment interest). All metrics use purchase date as their time dimension.",
+     "drillMembers": [],
+     "drillMembersGrouped": {
+      "dimensions": [],
+      "measures": []
+     },
+     "formatDescription": {
+      "name": "number",
+      "specifier": ",.2~f"
+     },
+     "isVisible": true,
+     "meta": {
+      "decomposableBy": [
+       "payment_type",
+       "customer_state",
+       "is_holiday"
+      ],
+      "grain": "payment",
+      "higherIsBetter": true,
+      "kind": "metric",
+      "maturityDays": 0,
+      "metricType": "sum",
+      "owner": "analytics-engineering",
+      "synonyms": [
+       "payments",
+       "cash collected",
+       "collections"
+      ],
+      "unit": "BRL"
+     },
+     "name": "payments.payments_collected",
+     "public": true,
+     "shortTitle": "Payments collected",
+     "title": "Payments Payments collected",
+     "type": "number"
+    }
+   ],
+   "name": "payments",
+   "nestedFolders": [],
+   "public": true,
+   "segments": [],
+   "title": "Payments",
+   "type": "view"
+  },
+  {
+   "description": "Customer review metrics.",
+   "dimensions": [
+    {
+     "aliasMember": "base_reviews.purchase_date",
+     "description": "Order purchase day; the time dimension of every metric.",
+     "isVisible": true,
+     "name": "reviews.purchase_date",
+     "primaryKey": false,
+     "public": true,
+     "shortTitle": "Purchase Date",
+     "suggestFilterValues": true,
+     "title": "Reviews Purchase Date",
+     "type": "time"
+    },
+    {
+     "aliasMember": "base_reviews.customer_state",
+     "description": "Customer state (UF).",
+     "isVisible": true,
+     "name": "reviews.customer_state",
+     "primaryKey": false,
+     "public": true,
+     "shortTitle": "Customer State",
+     "suggestFilterValues": true,
+     "title": "Reviews Customer State",
+     "type": "string"
+    }
+   ],
+   "folders": [],
+   "hierarchies": [],
+   "isVisible": true,
+   "measures": [
+    {
+     "aggType": "number",
+     "aliasMember": "base_reviews.avg_review_score",
+     "cumulative": false,
+     "cumulativeTotal": false,
+     "description": "Mean review score (1-5) of reviews received. All metrics use purchase date as their time dimension.",
+     "drillMembers": [],
+     "drillMembersGrouped": {
+      "dimensions": [],
+      "measures": []
+     },
+     "formatDescription": {
+      "name": "number",
+      "specifier": ",.2~f"
+     },
+     "isVisible": true,
+     "meta": {
+      "decomposableBy": [
+       "customer_state"
+      ],
+      "denominator": "reviews",
+      "grain": "review",
+      "higherIsBetter": true,
+      "kind": "metric",
+      "maturityDays": 45,
+      "metricType": "average",
+      "numerator": "total_review_score",
+      "owner": "analytics-engineering",
+      "synonyms": [
+       "rating",
+       "review score",
+       "satisfaction",
+       "csat"
+      ],
+      "unit": "score"
+     },
+     "name": "reviews.avg_review_score",
+     "public": true,
+     "shortTitle": "Average review score",
+     "title": "Reviews Average review score",
+     "type": "number"
+    },
+    {
+     "aggType": "number",
+     "aliasMember": "base_reviews.negative_review_rate",
+     "cumulative": false,
+     "cumulativeTotal": false,
+     "description": "Reviews scored 1 or 2 divided by all reviews received. All metrics use purchase date as their time dimension.",
+     "drillMembers": [],
+     "drillMembersGrouped": {
+      "dimensions": [],
+      "measures": []
+     },
+     "formatDescription": {
+      "name": "number",
+      "specifier": ",.2~f"
+     },
+     "isVisible": true,
+     "meta": {
+      "decomposableBy": [
+       "customer_state"
+      ],
+      "denominator": "reviews",
+      "grain": "review",
+      "higherIsBetter": false,
+      "kind": "metric",
+      "maturityDays": 45,
+      "metricType": "ratio",
+      "numerator": "negative_reviews",
+      "owner": "analytics-engineering",
+      "synonyms": [
+       "bad reviews",
+       "detractors",
+       "negative reviews"
+      ],
+      "unit": "ratio"
+     },
+     "name": "reviews.negative_review_rate",
+     "public": true,
+     "shortTitle": "Negative review rate",
+     "title": "Reviews Negative review rate",
+     "type": "number"
+    },
+    {
+     "aggType": "count",
+     "aliasMember": "base_reviews.reviews",
+     "cumulative": false,
+     "cumulativeTotal": false,
+     "description": "Reviews received.",
+     "drillMembers": [],
+     "drillMembersGrouped": {
+      "dimensions": [],
+      "measures": []
+     },
+     "formatDescription": {
+      "name": "number",
+      "specifier": ",.2~f"
+     },
+     "isVisible": true,
+     "meta": {
+      "kind": "component",
+      "owner": "analytics-engineering"
+     },
+     "name": "reviews.reviews",
+     "public": true,
+     "shortTitle": "Reviews",
+     "title": "Reviews Reviews",
+     "type": "number"
+    },
+    {
+     "aggType": "count",
+     "aliasMember": "base_reviews.negative_reviews",
+     "cumulative": false,
+     "cumulativeTotal": false,
+     "description": "Reviews scored 1 or 2.",
+     "drillMembers": [],
+     "drillMembersGrouped": {
+      "dimensions": [],
+      "measures": []
+     },
+     "formatDescription": {
+      "name": "number",
+      "specifier": ",.2~f"
+     },
+     "isVisible": true,
+     "meta": {
+      "kind": "component",
+      "owner": "analytics-engineering"
+     },
+     "name": "reviews.negative_reviews",
+     "public": true,
+     "shortTitle": "Negative Reviews",
+     "title": "Reviews Negative Reviews",
+     "type": "number"
+    },
+    {
+     "aggType": "sum",
+     "aliasMember": "base_reviews.total_review_score",
+     "cumulative": false,
+     "cumulativeTotal": false,
+     "description": "Sum of review scores.",
+     "drillMembers": [],
+     "drillMembersGrouped": {
+      "dimensions": [],
+      "measures": []
+     },
+     "formatDescription": {
+      "name": "number",
+      "specifier": ",.2~f"
+     },
+     "isVisible": true,
+     "meta": {
+      "kind": "component",
+      "owner": "analytics-engineering"
+     },
+     "name": "reviews.total_review_score",
+     "public": true,
+     "shortTitle": "Total Review Score",
+     "title": "Reviews Total Review Score",
+     "type": "number"
+    }
+   ],
+   "name": "reviews",
+   "nestedFolders": [],
+   "public": true,
+   "segments": [],
+   "title": "Reviews",
+   "type": "view"
+  },
+  {
+   "description": "Item-level sales: GMV, revenue and active sellers.",
+   "dimensions": [
+    {
+     "aliasMember": "base_order_items.purchase_date",
+     "description": "Order purchase day; the time dimension of every metric.",
+     "isVisible": true,
+     "name": "sales.purchase_date",
+     "primaryKey": false,
+     "public": true,
+     "shortTitle": "Purchase Date",
+     "suggestFilterValues": true,
+     "title": "Sales Purchase Date",
+     "type": "time"
+    },
+    {
+     "aliasMember": "base_order_items.category",
+     "description": "Product category in English ('unknown' if missing or untranslated).",
+     "isVisible": true,
+     "name": "sales.category",
+     "primaryKey": false,
+     "public": true,
+     "shortTitle": "Category",
+     "suggestFilterValues": true,
+     "title": "Sales Category",
+     "type": "string"
+    },
+    {
+     "aliasMember": "base_order_items.seller_state",
+     "description": "Seller state (UF).",
+     "isVisible": true,
+     "name": "sales.seller_state",
+     "primaryKey": false,
+     "public": true,
+     "shortTitle": "Seller State",
+     "suggestFilterValues": true,
+     "title": "Sales Seller State",
+     "type": "string"
+    },
+    {
+     "aliasMember": "base_order_items.customer_state",
+     "description": "Customer state (UF).",
+     "isVisible": true,
+     "name": "sales.customer_state",
+     "primaryKey": false,
+     "public": true,
+     "shortTitle": "Customer State",
+     "suggestFilterValues": true,
+     "title": "Sales Customer State",
+     "type": "string"
+    },
+    {
+     "aliasMember": "base_dates.is_holiday",
+     "description": "Purchased on a Brazilian public holiday.",
+     "isVisible": true,
+     "name": "sales.is_holiday",
+     "primaryKey": false,
+     "public": true,
+     "shortTitle": "Is Holiday",
+     "suggestFilterValues": true,
+     "title": "Sales Is Holiday",
+     "type": "boolean"
+    }
+   ],
+   "folders": [],
+   "hierarchies": [],
+   "isVisible": true,
+   "measures": [
+    {
+     "aggType": "sum",
+     "aliasMember": "base_order_items.gmv",
+     "cumulative": false,
+     "cumulativeTotal": false,
+     "description": "Sum of item prices on non-cancelled orders (cancelled = canceled or unavailable), in BRL. All metrics use purchase date as their time dimension.",
+     "drillMembers": [],
+     "drillMembersGrouped": {
+      "dimensions": [],
+      "measures": []
+     },
+     "formatDescription": {
+      "name": "number",
+      "specifier": ",.2~f"
+     },
+     "isVisible": true,
+     "meta": {
+      "decomposableBy": [
+       "category",
+       "seller_state",
+       "customer_state",
+       "is_holiday"
+      ],
+      "grain": "item",
+      "higherIsBetter": true,
+      "kind": "metric",
+      "maturityDays": 0,
+      "metricType": "sum",
+      "owner": "analytics-engineering",
+      "synonyms": [
+       "gross merchandise value",
+       "sales",
+       "revenue",
+       "merchandise sales"
+      ],
+      "unit": "BRL"
+     },
+     "name": "sales.gmv",
+     "public": true,
+     "shortTitle": "GMV",
+     "title": "Sales GMV",
+     "type": "number"
+    },
+    {
+     "aggType": "sum",
+     "aliasMember": "base_order_items.gmv_usd",
+     "cumulative": false,
+     "cumulativeTotal": false,
+     "description": "GMV converted to USD at the purchase-day ECB rate. All metrics use purchase date as their time dimension.",
+     "drillMembers": [],
+     "drillMembersGrouped": {
+      "dimensions": [],
+      "measures": []
+     },
+     "formatDescription": {
+      "name": "number",
+      "specifier": ",.2~f"
+     },
+     "isVisible": true,
+     "meta": {
+      "decomposableBy": [
+       "category",
+       "seller_state",
+       "customer_state",
+       "is_holiday"
+      ],
+      "grain": "item",
+      "higherIsBetter": true,
+      "kind": "metric",
+      "maturityDays": 0,
+      "metricType": "sum",
+      "owner": "analytics-engineering",
+      "synonyms": [
+       "sales in dollars",
+       "usd gmv"
+      ],
+      "unit": "USD"
+     },
+     "name": "sales.gmv_usd",
+     "public": true,
+     "shortTitle": "GMV (USD)",
+     "title": "Sales GMV (USD)",
+     "type": "number"
+    },
+    {
+     "aggType": "sum",
+     "aliasMember": "base_order_items.revenue_incl_freight",
+     "cumulative": false,
+     "cumulativeTotal": false,
+     "description": "Item price plus freight on non-cancelled orders, in BRL. All metrics use purchase date as their time dimension.",
+     "drillMembers": [],
+     "drillMembersGrouped": {
+      "dimensions": [],
+      "measures": []
+     },
+     "formatDescription": {
+      "name": "number",
+      "specifier": ",.2~f"
+     },
+     "isVisible": true,
+     "meta": {
+      "decomposableBy": [
+       "category",
+       "seller_state",
+       "customer_state",
+       "is_holiday"
+      ],
+      "grain": "item",
+      "higherIsBetter": true,
+      "kind": "metric",
+      "maturityDays": 0,
+      "metricType": "sum",
+      "owner": "analytics-engineering",
+      "synonyms": [
+       "revenue",
+       "total revenue",
+       "billings",
+       "sales incl freight"
+      ],
+      "unit": "BRL"
+     },
+     "name": "sales.revenue_incl_freight",
+     "public": true,
+     "shortTitle": "Revenue incl. freight",
+     "title": "Sales Revenue incl. freight",
+     "type": "number"
+    },
+    {
+     "aggType": "sum",
+     "aliasMember": "base_order_items.revenue_incl_freight_usd",
+     "cumulative": false,
+     "cumulativeTotal": false,
+     "description": "Revenue including freight, in USD at the purchase-day rate. All metrics use purchase date as their time dimension.",
+     "drillMembers": [],
+     "drillMembersGrouped": {
+      "dimensions": [],
+      "measures": []
+     },
+     "formatDescription": {
+      "name": "number",
+      "specifier": ",.2~f"
+     },
+     "isVisible": true,
+     "meta": {
+      "decomposableBy": [
+       "category",
+       "seller_state",
+       "customer_state",
+       "is_holiday"
+      ],
+      "grain": "item",
+      "higherIsBetter": true,
+      "kind": "metric",
+      "maturityDays": 0,
+      "metricType": "sum",
+      "owner": "analytics-engineering",
+      "synonyms": [
+       "usd revenue"
+      ],
+      "unit": "USD"
+     },
+     "name": "sales.revenue_incl_freight_usd",
+     "public": true,
+     "shortTitle": "Revenue incl. freight (USD)",
+     "title": "Sales Revenue incl. freight (USD)",
+     "type": "number"
+    },
+    {
+     "aggType": "countDistinct",
+     "aliasMember": "base_order_items.active_sellers",
+     "cumulative": false,
+     "cumulativeTotal": false,
+     "description": "Distinct sellers with at least one item on a non-cancelled order. All metrics use purchase date as their time dimension.",
+     "drillMembers": [],
+     "drillMembersGrouped": {
+      "dimensions": [],
+      "measures": []
+     },
+     "formatDescription": {
+      "name": "number",
+      "specifier": ",.2~f"
+     },
+     "isVisible": true,
+     "meta": {
+      "decomposableBy": [
+       "seller_state"
+      ],
+      "grain": "seller",
+      "higherIsBetter": true,
+      "kind": "metric",
+      "maturityDays": 0,
+      "metricType": "count_distinct",
+      "owner": "analytics-engineering",
+      "synonyms": [
+       "sellers",
+       "selling merchants"
+      ],
+      "unit": "sellers"
+     },
+     "name": "sales.active_sellers",
+     "public": true,
+     "shortTitle": "Active sellers",
+     "title": "Sales Active sellers",
+     "type": "number"
+    }
+   ],
+   "name": "sales",
+   "nestedFolders": [],
+   "public": true,
+   "segments": [],
+   "title": "Sales",
+   "type": "view"
+  }
+ ]
+}
