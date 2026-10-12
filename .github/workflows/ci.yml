@@ -1,0 +1,43 @@
+name: ci
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lint:
+    name: Lint, type check and unit tests
+    runs-on: ubuntu-latest
+    env:
+      # Non-secret dummy values: check-env validates configuration shape only.
+      APP_ENV: local
+      LAKE_BUCKET: metrictrace-lake
+      LAKE_ENDPOINT_URL: http://minio:9000
+      MINIO_ROOT_USER: ci
+      MINIO_ROOT_PASSWORD: ci-password
+      AWS_REGION: us-east-1
+      CUBE_API_URL: http://cube:4000
+      API_URL: http://api:8000
+      LLM_PROVIDER: fake
+      LLM_MODEL: fake
+      CUBE_API_SECRET: ci-cube-secret
+      API_BEARER_TOKEN: ci-bearer-token
+      SIM_START_DATE: "2017-01-01"
+      SIM_END_DATE: "2018-08-31"
+    steps:
+      - uses: actions/checkout@v7.0.1
+      - uses: astral-sh/setup-uv@v10.3.0
+        with:
+          enable-cache: true
+      - run: make install
+      - run: make lint
+      - run: make check-env
+      - run: make test-unit

@@ -1,0 +1,12 @@
+# The dbt templater (sqlfluff-templater-dbt) is installed with dbt-duckdb in Phase 3.
+[sqlfluff]
+dialect = duckdb
+templater = dbt
+max_line_length = 100
+
+[sqlfluff:templater:dbt]
+project_dir = dbt
+profiles_dir = dbt
+
+[sqlfluff:rules:capitalisation.keywords]
+capitalisation_policy = lower
