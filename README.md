@@ -18,6 +18,10 @@ make lint                    # ruff, mypy --strict, sqlfluff
 make test-unit               # no network, no running services
 make test-lake               # lake integration tests against the running stack
 make test-ingestion          # ingestion tests, replaying the committed fixture offline
+make dbt-build               # dbt freshness + build on the lake in .env, then publish artifacts
+make dbt-build-fixture       # replay the fixture into its own bucket and build it
+make dbt-docs                # docs site with lineage to the Cube and agent exposures
+make test-dbt                # dbt integration test: marts match the independent oracle
 ```
 
 `make down` stops the stack and keeps the data; `make clean-lake` deletes the local lake.

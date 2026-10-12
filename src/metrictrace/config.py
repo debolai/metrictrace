@@ -85,6 +85,9 @@ class Settings(BaseSettings):
     api_cache_dir: Path = Path("data/api_cache")
     api_offline: bool = False
 
+    # dbt project (profiles.yml lives beside dbt_project.yml)
+    dbt_project_dir: Path = Path("dbt")
+
     # LLM
     llm_provider: LlmProvider
     llm_model: str

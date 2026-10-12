@@ -1,0 +1,129 @@
+version: 2
+
+models:
+  - name: stg_olist__order_versions
+    description: >
+      Every version of every order: the order's end-of-day state on each simulated day
+      on which it changed. drop_date orders the versions; ingested_at is audit only.
+    data_tests:
+      - unique_combination:
+          arguments:
+            columns: [order_id, drop_date]
+    columns:
+      - name: order_id
+        data_tests: [not_null]
+      - name: drop_date
+        data_tests: [not_null]
+      - name: order_status
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: [created, approved, invoiced, processing, shipped, delivered, canceled, unavailable]
+              config:
+                severity: warn
+
+  - name: stg_olist__order_items
+    data_tests:
+      - unique_combination:
+          arguments:
+            columns: [order_id, order_item_id]
+    columns:
+      - name: order_id
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('stg_olist__order_versions')
+                field: order_id
+              config:
+                severity: warn
+      - name: product_id
+        data_tests:
+          - relationships:
+              arguments:
+                to: ref('stg_olist__products')
+                field: product_id
+              config:
+                severity: warn
+      - name: seller_id
+        data_tests:
+          - relationships:
+              arguments:
+                to: ref('stg_olist__sellers')
+                field: seller_id
+              config:
+                severity: warn
+
+  - name: stg_olist__payments
+    data_tests:
+      - unique_combination:
+          arguments:
+            columns: [order_id, payment_sequential]
+    columns:
+      - name: order_id
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('stg_olist__order_versions')
+                field: order_id
+              config:
+                severity: warn
+      - name: payment_type
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: [credit_card, boleto, voucher, debit_card, not_defined]
+              config:
+                severity: warn
+
+  - name: stg_olist__reviews
+    description: Grain is (review_id, order_id); some review_id values cover several orders.
+    data_tests:
+      - unique_combination:
+          arguments:
+            columns: [review_id, order_id]
+    columns:
+      - name: order_id
+        data_tests:
+          - relationships:
+              arguments:
+                to: ref('stg_olist__order_versions')
+                field: order_id
+              config:
+                severity: warn
+      - name: review_score
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: [1, 2, 3, 4, 5]
+                quote: false
+              config:
+                severity: warn
+
+  - name: stg_olist__customers
+    description: One row per customer_id. Olist issues a customer_id per order; customer_unique_id is the person.
+    columns:
+      - name: customer_id
+        data_tests: [unique, not_null]
+      - name: customer_unique_id
+        data_tests: [not_null]
+
+  - name: stg_olist__sellers
+    columns:
+      - name: seller_id
+        data_tests: [unique, not_null]
+
+  - name: stg_olist__products
+    description: >
+      Products with categories translated to English. 'unknown' covers both untranslated
+      categories (is_untranslated) and products with no category (is_missing_category).
+    columns:
+      - name: product_id
+        data_tests: [unique, not_null]
+
+  - name: stg_olist__geolocation
+    description: One row per zip-code prefix (median coordinates, most frequent city and state).
+    columns:
+      - name: zip_code_prefix
+        data_tests: [unique, not_null]

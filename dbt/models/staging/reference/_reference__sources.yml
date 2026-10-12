@@ -1,0 +1,20 @@
+version: 2
+
+sources:
+  - name: reference
+    description: Public API data landed by ingestion.
+    tables:
+      - name: fx_rates
+        description: ECB reference rates for BRL from Frankfurter, one drop per day (empty on weekends and ECB holidays).
+        config:
+          external_location: >-
+            read_parquet('s3://{{ env_var("LAKE_BUCKET") }}/raw/fx/*/*.parquet', hive_partitioning = true)
+          loaded_at_field: _ingested_at
+          freshness:
+            warn_after: {count: 1, period: day}
+            error_after: {count: 2, period: day}
+      - name: holidays
+        description: Brazilian public holidays from Nager.Date, one list per year.
+        config:
+          external_location: >-
+            read_parquet('s3://{{ env_var("LAKE_BUCKET") }}/raw/holidays/*/*.parquet', hive_partitioning = true)

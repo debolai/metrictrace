@@ -2,10 +2,18 @@
 # Targets are added phase by phase; each one is safe to run twice.
 
 UV_RUN := uv run --frozen
+# Settings for the committed fixture (own bucket, offline); see tests/fixture.env.
+FIXTURE_ENV := $(shell grep -v '^\s*\#' tests/fixture.env | xargs)
+# sqlfluff renders the dbt project to lint it; it needs the profile's variables but
+# never connects, so placeholder values are enough.
+SQLFLUFF_ENV := DBT_TARGET=local DBT_DUCKDB_PATH=:memory: LAKE_BUCKET=lint AWS_REGION=us-east-1 \
+	SIM_START_DATE=2018-02-01 SIM_END_DATE=2018-08-29 DBT_S3_KEY_ID=lint \
+	DBT_S3_SECRET=lint DBT_S3_ENDPOINT=localhost:9000 DBT_S3_USE_SSL=false
 
 .DEFAULT_GOAL := help
 .PHONY: help install hooks lint format check-env test-unit duckdb-extensions up down clean-lake test-lake \
-	download-data ingest backfill test-ingestion fixtures
+	download-data ingest backfill test-ingestion fixtures \
+	fixture-lake dbt-build dbt-build-fixture dbt-docs test-dbt
 
 help: ## List available targets
 	@grep -E '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  %-14s %s\n", $$1, $$2}'
@@ -25,7 +33,7 @@ lint: ## ruff, mypy --strict and sqlfluff
 	$(UV_RUN) ruff format --check .
 	$(UV_RUN) mypy
 	@if find dbt -name '*.sql' 2>/dev/null | grep -q .; then \
-		$(UV_RUN) sqlfluff lint dbt; \
+		env $(SQLFLUFF_ENV) $(UV_RUN) sqlfluff lint dbt; \
 	else \
 		echo "sqlfluff: no SQL under dbt/ yet (added in Phase 3)"; \
 	fi
@@ -74,3 +82,19 @@ fixtures: ## Rebuild data/fixtures and golden values from the full download (det
 
 test-ingestion: ## Ingestion unit tests plus the Phase 2 gate against the running stack
 	$(UV_RUN) pytest tests/unit/ingestion tests/unit/test_pipeline.py tests/integration/test_ingestion.py
+
+fixture-lake: ## Replay the whole committed fixture into its own bucket (offline)
+	env $(FIXTURE_ENV) $(UV_RUN) metrictrace init-lake
+	env $(FIXTURE_ENV) $(UV_RUN) metrictrace ingest --window
+
+dbt-build: ## dbt source freshness + build on the lake in .env, then publish artifacts
+	$(UV_RUN) metrictrace transform
+
+dbt-build-fixture: fixture-lake ## Phase 3 gate: dbt build on the fixture lake
+	env $(FIXTURE_ENV) $(UV_RUN) metrictrace transform
+
+dbt-docs: ## Generate the dbt docs site (dbt/target/index.html)
+	$(UV_RUN) metrictrace dbt docs generate
+
+test-dbt: ## dbt integration tests: fixture lake, build, artifacts and mart totals
+	$(UV_RUN) pytest tests/integration/test_dbt.py

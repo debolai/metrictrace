@@ -1,0 +1,37 @@
+name: metrictrace
+version: "1.0.0"
+profile: metrictrace
+require-dbt-version: [">=1.10.0", "<2.0.0"]
+
+model-paths: [models]
+test-paths: [tests]
+macro-paths: [macros]
+target-path: target
+clean-targets: [target, dbt_packages]
+
+vars:
+  # Daily payments may differ from items plus freight by installment interest and
+  # vouchers; measured on the full data at 0.9969-1.0074 per day (decision 0004).
+  payment_reconciliation_tolerance: 0.02
+  # unavailable orders were never fulfilled, so they count as cancelled (decision 0003).
+  cancelled_statuses: [canceled, unavailable]
+  max_untranslated_category_share: 0.01
+  row_count_zscore_threshold: 3
+
+# In-memory DuckDB: register already-built external marts when a run selects a subset.
+on-run-start:
+  - "{{ register_upstream_external_models() }}"
+
+models:
+  metrictrace:
+    staging:
+      +materialized: view
+    intermediate:
+      +materialized: view
+    marts:
+      +materialized: external
+      +format: parquet
+
+data_tests:
+  metrictrace:
+    +severity: error

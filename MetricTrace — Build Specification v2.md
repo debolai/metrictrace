@@ -1,6 +1,6 @@
 # MetricTrace — Build Specification (v2)
 
-Oct 12, 2026 · @Debola · Revision of v1. Every change from v1 is listed in **Appendix: Changes from v1**. Later deviations are recorded in `docs/decisions/` (0002: RustFS replaces MinIO; 0003: ingestion findings).
+Oct 12, 2026 · @Debola · Revision of v1. Every change from v1 is listed in **Appendix: Changes from v1**. Later deviations are recorded in `docs/decisions/` (0002: RustFS replaces MinIO; 0003: ingestion findings; 0004: dbt findings).
 
 ## Overview
 
@@ -367,7 +367,7 @@ dbt-duckdb reads raw Parquet straight from the lake and writes marts back as Par
 
 - Some `review_id` values repeat across different orders. The grain is `(review_id, order_id)`, not `review_id`.
 - `customer_id` is unique per order; `customer_unique_id` identifies the person, and the same person can appear with different cities or states.
-- A few orders have no payment rows. Payment totals can differ from item price plus freight. **Measure** the cause (installment interest, vouchers, other) on the full data before documenting it and before setting the reconciliation tolerance.
+- A few orders have no payment rows. Payment totals can differ from item price plus freight, mostly through installment interest: measured at 0.9969–1.0074 per day, so the reconciliation tolerance is ±2% (decision 0004).
 - Some product categories have no English translation (two in the real data), and some products have no category at all.
 - A few `delivered` orders have no customer-delivery date.
 - Geolocation has many rows per zip prefix.
@@ -389,7 +389,7 @@ The investigation engine reads warn results from `run_results.json` and maps the
 - **Generic:** `unique`, `not_null`, `relationships` and `accepted_values` on every key and status column, with the severities above.
 - **Unit tests (dbt 1.8+):** latest-version selection (including a re-ingested old date), FX forward-fill, `is_late` date logic, status-history boundaries and `is_first_order`, each with hand-written input rows.
 - **Reconciliation (singular tests):** mart item totals equal raw item totals for current orders; payment totals match item totals within the measured, documented tolerance.
-- **Schema checks:** each mart's columns and types are declared in YAML. **Verify first** whether dbt model contracts are enforced for dbt-duckdb `external` materializations. If they are not, a custom generic test compares `DESCRIBE` output with the YAML.
+- **Schema checks:** each mart's columns and types are declared in YAML. dbt-duckdb does not enforce model contracts for `external` materializations, so the generic test `matches_declared_columns` compares the built columns with the YAML (decision 0004).
 - **Exposures:** the Cube semantic layer and the agent are declared as dbt exposures, so lineage reaches the consumer.
 
 ### Done when
