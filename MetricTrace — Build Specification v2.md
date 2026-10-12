@@ -1,6 +1,6 @@
 # MetricTrace — Build Specification (v2)
 
-Oct 12, 2026 · @Debola · Revision of v1. Every change from v1 is listed in **Appendix: Changes from v1**. Later deviations are recorded in `docs/decisions/` (0002: RustFS replaces MinIO; 0003: ingestion findings; 0004: dbt findings).
+Oct 12, 2026 · @Debola · Revision of v1. Every change from v1 is listed in **Appendix: Changes from v1**. Later deviations are recorded in `docs/decisions/` (0002: RustFS replaces MinIO; 0003: ingestion findings; 0004: dbt findings; 0005: Airflow orchestrates the pipeline).
 
 ## Overview
 
@@ -71,6 +71,9 @@ flowchart TB
   AGENT --> AUD
   AGENT --> API[FastAPI]
   API --> UI[Streamlit]
+  AF[Airflow DAG metrictrace_daily] -.->|schedules| ING
+  AF -.->|schedules| DBT
+  AF -.->|AWS only| GLUE
 ```
 
 Data flows top to bottom. The agent never touches raw data or writes SQL, and every answer is logged to `_audit/`.
@@ -91,11 +94,11 @@ Data flows top to bottom. The agent never touches raw data or writes SQL, and ev
 | Transform engine | dbt-duckdb | dbt-duckdb in a Kubernetes Job |
 | Catalog | None needed | Glue Data Catalog via a crawler (one table per `marts/<model>/` folder) |
 | Semantic layer | Cube, DuckDB driver over RustFS | Cube, Athena driver |
-| Orchestration | `make pipeline` and Docker Compose | Kubernetes CronJob (`concurrencyPolicy: Forbid`) |
+| Orchestration | Apache Airflow (LocalExecutor) in Docker Compose | Apache Airflow (KubernetesExecutor, official Helm chart); each step a `KubernetesPodOperator` task; one active DAG run at a time |
 | Agent | LangGraph; Anthropic or OpenAI via LangChain | Same |
 | Agent state | In-memory checkpointer (1 replica, 1 worker); audit log in the lake | Same, in S3 |
 | API and UI | FastAPI, Streamlit | Same, behind LoadBalancer Services |
-| Containers | Docker Compose, then kind | EKS (managed node group, t3.medium spot, Kubernetes version in standard support) |
+| Containers | Docker Compose, then kind | EKS (managed node group, t3.large spot, Kubernetes version in standard support) |
 | Infrastructure as code | None | Terraform with an S3 state backend |
 | Secrets | `.env` file | Secrets Manager synced to a Kubernetes Secret; IRSA for AWS access |
 | CI/CD | GitHub Actions | GitHub Actions with OIDC to AWS |
@@ -142,7 +145,7 @@ Every choice favours fewer moving parts and identical behaviour on a laptop and 
 
 | Decision | Alternatives considered | Why this choice | Trade-off accepted | Revisit when |
 | --- | --- | --- | --- | --- |
-| Kubernetes CronJob for orchestration | Airflow; Dagster; Step Functions | One linear daily pipeline does not justify a scheduler platform | No run history UI; basic retry and backfill tooling | Pipelines branch or multiply (Dagster is the stretch goal) |
+| Apache Airflow for orchestration (decision 0005) | Kubernetes CronJob; Dagster; Step Functions | Run history, retries and backfills in a UI; the orchestrator most analytics teams run, so the skills transfer | A scheduler, webserver and Postgres to run; larger EKS nodes | Airflow's footprint outweighs its value, or asset-based orchestration (Dagster) becomes the team standard |
 | One Helm chart for kind and EKS | Separate manifests per environment | The same deployment artifact is tested locally, in CI and in production | Helm templating adds complexity | Not expected |
 | EKS rather than ECS Fargate | ECS; App Runner | The brief requires Kubernetes, and the skills carry across clouds | Fixed control-plane cost (about 73 USD per month in standard support) | Kubernetes is no longer a requirement |
 | Public subnets, no NAT gateway by default | Private subnets with a NAT gateway | Avoids the NAT gateway's fixed hourly cost for a demo | Nodes have public IPs, limited by security groups | Any use beyond a demo: set `enable_nat=true` |
@@ -177,6 +180,7 @@ metrictrace/
 │   ├── audit.py             # audit log writer
 │   └── api/                 # FastAPI app
 ├── ui/                      # Streamlit app
+├── airflow/dags/            # metrictrace_daily DAG (ingest -> transform -> Glue crawler)
 ├── dbt/                     # dbt project (models, tests, macros, profiles.yml)
 ├── cube/
 │   ├── model/               # Cube YAML data models + globals.py
@@ -310,7 +314,7 @@ Olist stores only each order's final status and its milestone timestamps. The re
 | `_meta/ingestion/<source>/drop_date=YYYY-MM-DD.json` | One record per source per day, **including zero-row drops**: row count, quarantine count, checksum, contract result |
 | `_meta/dbt/run_id=<id>/` | `manifest.json`, `run_results.json`, `sources.json` |
 | `_meta/dbt/latest.json` | Pointer to the latest run id (used by Cube's refresh key) |
-| `_meta/sim_clock.json` | Next simulated day for the CronJob |
+| `_meta/sim_clock.json` | Next simulated day for the daily Airflow DAG |
 | `_audit/agent/date=YYYY-MM-DD/` | One JSONL line per agent answer |
 
 ### Ingestion requirements
@@ -658,17 +662,18 @@ The same images and Helm chart run on Docker Compose, a local kind cluster and E
 | Image | Contents | Notes |
 | --- | --- | --- |
 | `metrictrace-app` | FastAPI, agent, investigation engine | Multi-stage, `uv` install, non-root user, healthcheck; runs 1 uvicorn worker |
-| `metrictrace-pipeline` | Ingestion CLI, dbt project, incident simulator | DuckDB `httpfs` and `aws` extensions pre-installed; runs as a Job or CronJob |
+| `metrictrace-pipeline` | Ingestion CLI, dbt project, incident simulator | DuckDB `httpfs` and `aws` extensions pre-installed; runs as Airflow task pods |
 | `metrictrace-ui` | Streamlit | Calls the API only |
 | `metrictrace-cube` | Official Cube image (pinned) plus `cube/model/` | Models baked in for reproducibility |
 
-Docker Compose runs RustFS, `lake-init`, Cube, API and UI. The pipeline runs on demand under a `jobs` profile.
+Docker Compose runs RustFS, `lake-init`, Cube, API, UI and Airflow (scheduler, API server and its Postgres). Locally the DAG's tasks call the pipeline CLI with the LocalExecutor; `make pipeline` still runs the same steps without Airflow.
 
 ### Kubernetes (one Helm chart)
 
 - **Deployments:** api (`replicas: 1`, fixed), ui and cube, each with liveness and readiness probes plus CPU and memory requests and limits.
-- **CronJob:** the daily pipeline, with `concurrencyPolicy: Forbid` so two runs never write marts at once. A simulated clock in `_meta/sim_clock.json` decides which day to replay next, and it stops at `SIM_END_DATE`.
-- **Job:** a one-off backfill, started with `make k8s-backfill FROM=... TO=...`.
+- **Airflow** (official Apache Airflow Helm chart as a dependency, KubernetesExecutor, its own Postgres on a small EBS volume). DAG `metrictrace_daily` runs `ingest` → `transform` (dbt freshness and build, artifact publishing) → `start_glue_crawler` (AWS only), each as a `KubernetesPodOperator` task on the pipeline image with the pipeline ServiceAccount. `max_active_runs=1` replaces the CronJob's `concurrencyPolicy: Forbid`, so two runs never write marts at once. The task reads and advances `_meta/sim_clock.json`, which decides the next simulated day and stops at `SIM_END_DATE`.
+- **Backfills:** the same DAG triggered with `{"from": ..., "to": ...}` in its run configuration, started with `make airflow-backfill FROM=... TO=...`.
+- **dbt in Airflow:** dbt runs as one task (`metrictrace transform`), not one task per model. The build uses one DuckDB session in which staging models are views over each other, so per-model pods (astronomer-cosmos) would break it; per-model lineage lives in the dbt docs site.
 - **ServiceAccounts:** separate ones for pipeline, cube and api, each annotated with its IRSA role on AWS.
 - **Config:** a ConfigMap for settings. Secrets come from a Kubernetes Secret created outside the chart.
 - `values-local.yaml`: images loaded into kind, RustFS deployed from `deploy/kind/`, access by port-forward.
@@ -680,7 +685,7 @@ Docker Compose runs RustFS, `lake-init`, Cube, API and UI. The pipeline runs on 
 | --- | --- |
 | `bootstrap` | State bucket with versioning; S3 native state locking (`use_lockfile`, Terraform 1.10+); local state for this module only |
 | `network` | VPC across 2 AZs, public subnets only by default; `enable_nat` variable for private nodes |
-| `eks` | EKS cluster (official `terraform-aws-modules/eks`, pinned) on a Kubernetes version in **standard** support; managed node group of 2 t3.medium spot instances; access entries |
+| `eks` | EKS cluster (official `terraform-aws-modules/eks`, pinned) on a Kubernetes version in **standard** support; managed node group of 2 t3.large spot instances (Airflow needs the memory); EBS CSI driver add-on for Airflow's Postgres volume; access entries |
 | `ecr` | 4 repositories, scan on push, keep the last 10 images |
 | `lake` | S3 bucket: versioning, encryption, public access blocked, lifecycle on `_audit/`, and expiry of noncurrent versions after 7 days |
 | `catalog` | Glue database; crawler on `marts/`, configured to create one table per `marts/<model>/` folder (table-level grouping); Athena workgroup with a results bucket and a 1 GB per-query scan limit |
@@ -724,8 +729,8 @@ Build one phase at a time, and do not start the next until the phase's gate comm
 | 5 | Investigation engine | `make test-investigation` |
 | 6 | LangGraph agent, tools, grounding check, fake LLM | `make test-agent` |
 | 7 | FastAPI, Streamlit, incident simulator, audit log | `make test-api`, `make test-incidents` and `make e2e` (services on the host) |
-| 8 | Dockerfiles; full stack in Compose | `make e2e` against containers |
-| 9 | Helm chart, kind config | `make kind-smoke` |
+| 8 | Dockerfiles; full stack in Compose, including Airflow and the `metrictrace_daily` DAG | `make e2e` against containers, plus one DAG run that succeeds |
+| 9 | Helm chart (with the Airflow chart as a dependency), kind config | `make kind-smoke`, including one successful DAG run on kind |
 | 10 | Terraform modules and `envs/aws` | `make tf-validate` (no AWS credentials needed) |
 | 11 | `ci.yml`, `cd.yml`, `nightly-evals.yml`; first AWS deploy with the IRSA spike | CI green on a pull request; CD smoke tests green |
 | 12 | Eval suite, README, architecture notes, runbook, dbt docs on GitHub Pages, metrics glossary generated from Cube `meta` | `make evals` with a real LLM key |
@@ -762,17 +767,17 @@ The engineer supplies credentials and runs a handful of `make` targets; everythi
 - [ ] Fill in `infra/terraform/envs/aws/terraform.tfvars`: region, `allowed_cidr` (your IP), budget email and amount.
 - [ ] Run `make aws-up`, then `make aws-put-secrets` (it prompts for keys and stores them in Secrets Manager), then `make aws-sync-secrets`.
 - [ ] Copy the Terraform outputs into GitHub secrets and variables (see Configuration).
-- [ ] Merge to `main` to deploy. CD runs the IRSA spike, the fixed-window backfill and the smoke tests. Run `make k8s-backfill` for any wider range.
+- [ ] Merge to `main` to deploy. CD runs the IRSA spike, the fixed-window backfill and the smoke tests. Run `make airflow-backfill FROM=... TO=...` for any wider range.
 - [ ] Run `make aws-down` when finished.
 
 ### Approximate AWS cost
 
-While the stack is running, expect roughly 4–6 USD per day:
+While the stack is running, expect roughly 5–7 USD per day:
 
 | Item | Approximate cost |
 | --- | --- |
 | EKS control plane (standard support) | about 0.10 USD/hour; extended support is about 6x more, so stay on a supported version |
-| 2 t3.medium spot nodes | about 1 USD/day |
+| 2 t3.large spot nodes (Airflow's scheduler, API server and Postgres need the memory) | about 2 USD/day |
 | 2 load balancers | about 1.2 USD/day |
 | Public IPv4 addresses (about 0.005 USD/hour each, for nodes and load balancers) | about 0.5 USD/day |
 | S3, Glue, Athena at this data size | minor |
@@ -795,6 +800,7 @@ These are estimates; confirm them in the AWS Pricing Calculator for your region.
 | Public subnets for nodes | Larger attack surface | Security groups and `loadBalancerSourceRanges` limited to your IP | Set `enable_nat=true` for private nodes |
 | Plain-HTTP load balancers | Bearer token visible on the network | Source-IP restriction; demo use only | ACM + AWS Load Balancer Controller (stretch goal) |
 | Spot interruption or pod restart | Open conversations lost | Audit log is durable; sessions are short | Postgres checkpointer (revisit trigger) |
+| Airflow outgrows the nodes | Scheduler or tasks evicted | Requests and limits on every Airflow component; t3.large nodes | Run Airflow's Postgres on RDS, or move tasks to Fargate |
 | Forgotten running stack | Ongoing charges | AWS Budget alert | `make aws-down` |
 
 ## Appendix: Changes from v1
