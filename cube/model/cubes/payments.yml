@@ -1,0 +1,34 @@
+cubes:
+  - name: base_payments
+    description: One row per payment line (dbt mart fct_payments).
+    sql: {{ mart('fct_payments') }}
+    public: false
+    refresh_key:
+      sql: {{ latest_dbt_run() }}
+
+    joins:
+      - name: base_dates
+        relationship: many_to_one
+        sql: "{CUBE}.purchase_date = {base_dates}.date_day"
+
+    dimensions:
+      - name: payment_key
+        sql: payment_key
+        type: string
+        primary_key: true
+      - name: purchase_date
+        sql: purchase_date
+        type: time
+      - name: payment_type
+        sql: payment_type
+        type: string
+      - name: customer_state
+        sql: customer_state
+        type: string
+
+    measures:
+      - name: payments_collected
+        sql: payment_value
+        type: sum
+        filters:
+          - sql: "NOT {CUBE}.is_cancelled"

@@ -28,6 +28,7 @@ MARTS = [
     "fct_payments",
     "fct_reviews",
     "mart_data_health_daily",
+    "mart_dbt_run",
 ]
 
 

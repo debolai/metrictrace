@@ -13,7 +13,8 @@ SQLFLUFF_ENV := DBT_TARGET=local DBT_DUCKDB_PATH=:memory: LAKE_BUCKET=lint AWS_R
 .DEFAULT_GOAL := help
 .PHONY: help install hooks lint format check-env test-unit duckdb-extensions up down clean-lake test-lake \
 	download-data ingest backfill test-ingestion fixtures \
-	fixture-lake dbt-build dbt-build-fixture dbt-docs test-dbt
+	fixture-lake dbt-build dbt-build-fixture dbt-docs test-dbt \
+	test-semantic record-cube-meta
 
 help: ## List available targets
 	@grep -E '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  %-14s %s\n", $$1, $$2}'
@@ -49,9 +50,10 @@ check-env: ## Validate configuration without starting anything
 test-unit: ## Unit tests with coverage
 	$(UV_RUN) pytest tests/unit --cov --cov-report=term-missing
 
-up: ## Start the local stack and create the lake bucket
+up: ## Start the local stack (object store, Cube) and create the lake bucket
 	docker compose up -d --wait rustfs
 	docker compose run --rm lake-init
+	docker compose up -d --wait cube
 
 down: ## Stop the local stack (lake data is kept)
 	docker compose down
@@ -98,3 +100,12 @@ dbt-docs: ## Generate the dbt docs site (dbt/target/index.html)
 
 test-dbt: ## dbt integration tests: fixture lake, build, artifacts and mart totals
 	$(UV_RUN) pytest tests/integration/test_dbt.py
+
+test-semantic: ## Phase 4 gate: Cube on the fixture lake matches the oracle at both as-of dates
+	env $(FIXTURE_ENV) docker compose up -d --wait cube
+	env $(FIXTURE_ENV) $(UV_RUN) pytest tests/integration/test_semantic.py tests/unit/semantic
+
+record-cube-meta: ## Re-record Cube's /v1/meta for the semantic unit tests (fixture Cube must be up)
+	env $(FIXTURE_ENV) $(UV_RUN) python -c "import json; from metrictrace.config import load_settings; \
+	from metrictrace.semantic.cube_client import CubeClient; \
+	open('data/fixtures/cube/meta.json', 'w').write(json.dumps(CubeClient(load_settings()).meta(), indent=1, sort_keys=True) + '\\n')"

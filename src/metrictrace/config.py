@@ -23,6 +23,8 @@ LlmProvider = Literal["anthropic", "openai", "fake"]
 LogLevel = Literal["DEBUG", "INFO", "WARNING", "ERROR"]
 
 DEFAULT_ENV_FILE = Path(".env")
+# HS256 signing keys shorter than the hash output are weak (RFC 7518, section 3.2).
+MIN_SECRET_LENGTH = 32
 
 _REQUIRED_WHEN_LOCAL = ("lake_endpoint_url", "rustfs_access_key", "rustfs_secret_key")
 _REQUIRED_WHEN_AWS = (
@@ -87,6 +89,9 @@ class Settings(BaseSettings):
 
     # dbt project (profiles.yml lives beside dbt_project.yml)
     dbt_project_dir: Path = Path("dbt")
+
+    # Semantic layer: words that map to several metrics
+    ambiguous_terms_path: Path = Path("cube/ambiguous_terms.yaml")
 
     # LLM
     llm_provider: LlmProvider
@@ -153,6 +158,12 @@ class Settings(BaseSettings):
             value = getattr(self, name)
             if value and not value.startswith(("http://", "https://")):
                 problems.append(f"{name.upper()} must start with http:// or https://")
+        for name in ("cube_api_secret", "api_bearer_token"):
+            if len(getattr(self, name).get_secret_value()) < MIN_SECRET_LENGTH:
+                problems.append(
+                    f"{name.upper()} must be at least {MIN_SECRET_LENGTH} characters "
+                    "(e.g. `openssl rand -hex 32`)"
+                )
         if self.athena_output_location and not self.athena_output_location.startswith("s3://"):
             problems.append("ATHENA_OUTPUT_LOCATION must start with s3://")
         if problems:

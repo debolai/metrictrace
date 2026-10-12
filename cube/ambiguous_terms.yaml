@@ -1,0 +1,23 @@
+# Words people use that map to more than one metric. The agent asks the user to choose,
+# or uses the default and says so in its answer.
+terms:
+  revenue:
+    candidates: [gmv, revenue_incl_freight, payments_collected]
+    default: gmv
+    note: Finance often means payments collected; sales teams usually mean GMV.
+  sales:
+    candidates: [gmv, orders]
+    default: gmv
+  volume:
+    candidates: [orders, gmv]
+    default: orders
+  customers:
+    candidates: [returning_customer_rate]
+    default: returning_customer_rate
+    note: Customer counts are components, not catalog metrics.
+  delivery:
+    candidates: [on_time_delivery_rate, avg_delivery_days]
+    default: on_time_delivery_rate
+  reviews:
+    candidates: [avg_review_score, negative_review_rate]
+    default: avg_review_score

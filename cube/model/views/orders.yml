@@ -1,0 +1,181 @@
+views:
+- name: orders
+  description: 'Order-level metrics: volume, cancellations, delivery and customers.'
+  cubes:
+  - join_path: base_orders
+    includes:
+    - name: orders
+      title: Orders
+      description: Count of orders, all statuses. All metrics use purchase date as their time dimension.
+      meta:
+        kind: metric
+        unit: orders
+        synonyms:
+        - order count
+        - number of orders
+        - volume
+        higher_is_better: true
+        owner: analytics-engineering
+        grain: order
+        maturity_days: 0
+        decomposable_by:
+        - customer_state
+        - is_holiday
+        metric_type: count
+    - name: aov
+      title: Average order value
+      description: GMV divided by non-cancelled orders, in BRL. All metrics use purchase date as their
+        time dimension.
+      meta:
+        kind: metric
+        unit: BRL
+        synonyms:
+        - average order value
+        - basket size
+        - average basket
+        higher_is_better: true
+        owner: analytics-engineering
+        grain: order
+        maturity_days: 0
+        decomposable_by:
+        - customer_state
+        - is_holiday
+        metric_type: ratio
+        numerator: gmv
+        denominator: non_cancelled_orders
+    - name: cancellation_rate
+      title: Cancellation rate
+      description: Cancelled orders (canceled or unavailable) divided by all orders. All metrics use purchase
+        date as their time dimension.
+      meta:
+        kind: metric
+        unit: ratio
+        synonyms:
+        - cancellations
+        - cancel rate
+        higher_is_better: false
+        owner: analytics-engineering
+        grain: order
+        maturity_days: 30
+        decomposable_by:
+        - customer_state
+        - is_holiday
+        metric_type: ratio
+        numerator: cancelled_orders
+        denominator: orders
+    - name: on_time_delivery_rate
+      title: On-time delivery rate
+      description: Delivered orders whose delivery date is on or before the estimated date, divided by
+        delivered orders with a delivery date. All metrics use purchase date as their time dimension.
+      meta:
+        kind: metric
+        unit: ratio
+        synonyms:
+        - on time
+        - otd
+        - delivery performance
+        - late deliveries
+        higher_is_better: true
+        owner: analytics-engineering
+        grain: order
+        maturity_days: 60
+        decomposable_by:
+        - customer_state
+        - is_holiday
+        metric_type: ratio
+        numerator: on_time_orders
+        denominator: delivered_orders
+    - name: avg_delivery_days
+      title: Average delivery days
+      description: Mean days from purchase date to delivery date, over delivered orders with a delivery
+        date. All metrics use purchase date as their time dimension.
+      meta:
+        kind: metric
+        unit: days
+        synonyms:
+        - delivery time
+        - shipping time
+        - lead time
+        higher_is_better: false
+        owner: analytics-engineering
+        grain: order
+        maturity_days: 60
+        decomposable_by:
+        - customer_state
+        - is_holiday
+        metric_type: average
+        numerator: total_delivery_days
+        denominator: delivered_orders
+    - name: returning_customer_rate
+      title: Returning customer rate
+      description: 'People (customer_unique_id) with an order in the period that is not their first in
+        the replay, divided by people with an order in the period. All metrics use purchase date as their
+        time dimension. Not decomposable: one person can order from several states in a period, so per-state
+        counts of people do not add up to the total.'
+      meta:
+        kind: metric
+        unit: ratio
+        synonyms:
+        - repeat customers
+        - repeat rate
+        - retention
+        higher_is_better: true
+        owner: analytics-engineering
+        grain: customer
+        maturity_days: 0
+        decomposable_by: []
+        metric_type: ratio
+        numerator: returning_customers
+        denominator: customers
+    - name: cancelled_orders
+      description: Orders with status canceled or unavailable.
+      meta:
+        kind: component
+        owner: analytics-engineering
+    - name: non_cancelled_orders
+      description: Orders not cancelled.
+      meta:
+        kind: component
+        owner: analytics-engineering
+    - name: delivered_orders
+      description: Delivered orders with a known delivery date.
+      meta:
+        kind: component
+        owner: analytics-engineering
+    - name: on_time_orders
+      description: Delivered orders delivered on or before the estimated date.
+      meta:
+        kind: component
+        owner: analytics-engineering
+    - name: total_delivery_days
+      description: Sum of delivery days over delivered orders with a delivery date.
+      meta:
+        kind: component
+        owner: analytics-engineering
+    - name: customers
+      description: Distinct people with an order.
+      meta:
+        kind: component
+        owner: analytics-engineering
+    - name: returning_customers
+      description: Distinct people with an order that is not their first.
+      meta:
+        kind: component
+        owner: analytics-engineering
+    - name: purchase_date
+      description: Order purchase day; the time dimension of every metric.
+    - name: customer_state
+      description: Customer state (UF).
+    - name: order_status
+      description: Current order status.
+  - join_path: base_orders.base_order_items
+    includes:
+    - name: gmv
+      description: GMV, the numerator of AOV.
+      meta:
+        kind: component
+        owner: analytics-engineering
+  - join_path: base_orders.base_dates
+    includes:
+    - name: is_holiday
+      description: Purchased on a Brazilian public holiday.

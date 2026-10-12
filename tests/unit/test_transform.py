@@ -31,11 +31,11 @@ def test_aws_env_has_no_static_keys(env: pytest.MonkeyPatch) -> None:
 
 def test_subprocess_env_contains_nothing_else(env: pytest.MonkeyPatch) -> None:
     apply(env, VALID_LOCAL)
-    env.setenv("API_BEARER_TOKEN", "must-not-leak")
+    env.setenv("API_BEARER_TOKEN", "must-not-leak-into-dbt-0123456789abcdef")
     env.setenv("AWS_PROFILE", "")  # empty AWS values break botocore and are dropped
     env.setenv("AWS_WEB_IDENTITY_TOKEN_FILE", "/var/run/token")  # IRSA passes through
     values = transform.subprocess_env(load_settings(env_file=None))
-    assert "must-not-leak" not in values.values()
+    assert "must-not-leak-into-dbt-0123456789abcdef" not in values.values()
     assert "AWS_PROFILE" not in values
     assert values["AWS_WEB_IDENTITY_TOKEN_FILE"] == "/var/run/token"
     assert values["DBT_SEND_ANONYMOUS_USAGE_STATS"] == "false"

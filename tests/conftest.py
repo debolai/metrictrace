@@ -21,8 +21,8 @@ VALID_LOCAL = {
     "LLM_PROVIDER": "anthropic",
     "LLM_MODEL": "test-model",
     "ANTHROPIC_API_KEY": "anthropic-secret-value",
-    "CUBE_API_SECRET": "cube-secret-value",
-    "API_BEARER_TOKEN": "bearer-secret-value",
+    "CUBE_API_SECRET": "cube-secret-value-0123456789abcdef",
+    "API_BEARER_TOKEN": "bearer-secret-value-0123456789abcdef",
     "SIM_START_DATE": "2017-01-01",
     "SIM_END_DATE": "2018-08-31",
 }

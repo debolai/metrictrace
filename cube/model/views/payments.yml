@@ -1,0 +1,36 @@
+views:
+- name: payments
+  description: Payment-level metrics.
+  cubes:
+  - join_path: base_payments
+    includes:
+    - name: payments_collected
+      title: Payments collected
+      description: Sum of payment value on non-cancelled orders, in BRL (includes installment interest).
+        All metrics use purchase date as their time dimension.
+      meta:
+        kind: metric
+        unit: BRL
+        synonyms:
+        - payments
+        - cash collected
+        - collections
+        higher_is_better: true
+        owner: analytics-engineering
+        grain: payment
+        maturity_days: 0
+        decomposable_by:
+        - payment_type
+        - customer_state
+        - is_holiday
+        metric_type: sum
+    - name: purchase_date
+      description: Order purchase day; the time dimension of every metric.
+    - name: payment_type
+      description: Payment method.
+    - name: customer_state
+      description: Customer state (UF).
+  - join_path: base_payments.base_dates
+    includes:
+    - name: is_holiday
+      description: Purchased on a Brazilian public holiday.

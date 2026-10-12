@@ -1,0 +1,19 @@
+cubes:
+  - name: base_dates
+    description: Calendar of the replay window with Brazilian public holidays (dbt mart dim_date).
+    sql: {{ mart('dim_date') }}
+    public: false
+    refresh_key:
+      sql: {{ latest_dbt_run() }}
+
+    dimensions:
+      - name: date_day
+        sql: date_day
+        type: time
+        primary_key: true
+      - name: is_holiday
+        sql: is_holiday
+        type: boolean
+      - name: holiday_name
+        sql: holiday_name
+        type: string

@@ -1,0 +1,57 @@
+cubes:
+  - name: base_order_items
+    description: One row per order item (dbt mart fct_order_items).
+    sql: {{ mart('fct_order_items') }}
+    public: false
+    refresh_key:
+      sql: {{ latest_dbt_run() }}
+
+    joins:
+      - name: base_dates
+        relationship: many_to_one
+        sql: "{CUBE}.purchase_date = {base_dates}.date_day"
+
+    dimensions:
+      - name: order_item_key
+        sql: order_item_key
+        type: string
+        primary_key: true
+      - name: purchase_date
+        sql: purchase_date
+        type: time
+      - name: category
+        sql: category
+        type: string
+      - name: seller_state
+        sql: seller_state
+        type: string
+      - name: customer_state
+        sql: customer_state
+        type: string
+
+    measures:
+      - name: gmv
+        sql: price
+        type: sum
+        filters:
+          - sql: "NOT {CUBE}.is_cancelled"
+      - name: gmv_usd
+        sql: price_usd
+        type: sum
+        filters:
+          - sql: "NOT {CUBE}.is_cancelled"
+      - name: revenue_incl_freight
+        sql: price + freight_value
+        type: sum
+        filters:
+          - sql: "NOT {CUBE}.is_cancelled"
+      - name: revenue_incl_freight_usd
+        sql: price_usd + freight_value_usd
+        type: sum
+        filters:
+          - sql: "NOT {CUBE}.is_cancelled"
+      - name: active_sellers
+        sql: seller_id
+        type: count_distinct
+        filters:
+          - sql: "NOT {CUBE}.is_cancelled"

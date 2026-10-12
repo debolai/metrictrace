@@ -468,7 +468,8 @@ models:
     description: Rows delivered.
   - name: row_count_zscore
     data_type: DOUBLE
-    description: Row count vs the previous 28 days of the same source (needs 7), with the spread floored at sqrt(mean).
+    description: Row count vs the previous 28 days of the same source (needs 7), with the spread floored
+      at sqrt(mean).
   - name: late_arrival_share
     data_type: DOUBLE
     description: 'olist/orders only: share of versions for orders purchased on earlier days.'
@@ -481,3 +482,17 @@ models:
   - name: fx_days_since_observed
     data_type: BIGINT
     description: 'fx only: days since a rate was last published.'
+- name: mart_dbt_run
+  description: The dbt run that built the marts; Cube's refresh key.
+  data_tests:
+  - matches_declared_columns: {}
+  columns:
+  - name: invocation_id
+    data_type: VARCHAR
+    description: dbt invocation id.
+    data_tests:
+    - unique
+    - not_null
+  - name: built_at
+    data_type: TIMESTAMP
+    description: When the run built the marts.

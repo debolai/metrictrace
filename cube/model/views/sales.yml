@@ -1,0 +1,118 @@
+views:
+- name: sales
+  description: 'Item-level sales: GMV, revenue and active sellers.'
+  cubes:
+  - join_path: base_order_items
+    includes:
+    - name: gmv
+      title: GMV
+      description: Sum of item prices on non-cancelled orders (cancelled = canceled or unavailable), in
+        BRL. All metrics use purchase date as their time dimension.
+      meta:
+        kind: metric
+        unit: BRL
+        synonyms:
+        - gross merchandise value
+        - sales
+        - revenue
+        - merchandise sales
+        higher_is_better: true
+        owner: analytics-engineering
+        grain: item
+        maturity_days: 0
+        decomposable_by:
+        - category
+        - seller_state
+        - customer_state
+        - is_holiday
+        metric_type: sum
+    - name: gmv_usd
+      title: GMV (USD)
+      description: GMV converted to USD at the purchase-day ECB rate. All metrics use purchase date as
+        their time dimension.
+      meta:
+        kind: metric
+        unit: USD
+        synonyms:
+        - sales in dollars
+        - usd gmv
+        higher_is_better: true
+        owner: analytics-engineering
+        grain: item
+        maturity_days: 0
+        decomposable_by:
+        - category
+        - seller_state
+        - customer_state
+        - is_holiday
+        metric_type: sum
+    - name: revenue_incl_freight
+      title: Revenue incl. freight
+      description: Item price plus freight on non-cancelled orders, in BRL. All metrics use purchase date
+        as their time dimension.
+      meta:
+        kind: metric
+        unit: BRL
+        synonyms:
+        - revenue
+        - total revenue
+        - billings
+        - sales incl freight
+        higher_is_better: true
+        owner: analytics-engineering
+        grain: item
+        maturity_days: 0
+        decomposable_by:
+        - category
+        - seller_state
+        - customer_state
+        - is_holiday
+        metric_type: sum
+    - name: revenue_incl_freight_usd
+      title: Revenue incl. freight (USD)
+      description: Revenue including freight, in USD at the purchase-day rate. All metrics use purchase
+        date as their time dimension.
+      meta:
+        kind: metric
+        unit: USD
+        synonyms:
+        - usd revenue
+        higher_is_better: true
+        owner: analytics-engineering
+        grain: item
+        maturity_days: 0
+        decomposable_by:
+        - category
+        - seller_state
+        - customer_state
+        - is_holiday
+        metric_type: sum
+    - name: active_sellers
+      title: Active sellers
+      description: Distinct sellers with at least one item on a non-cancelled order. All metrics use purchase
+        date as their time dimension.
+      meta:
+        kind: metric
+        unit: sellers
+        synonyms:
+        - sellers
+        - selling merchants
+        higher_is_better: true
+        owner: analytics-engineering
+        grain: seller
+        maturity_days: 0
+        decomposable_by:
+        - seller_state
+        metric_type: count_distinct
+    - name: purchase_date
+      description: Order purchase day; the time dimension of every metric.
+    - name: category
+      description: Product category in English ('unknown' if missing or untranslated).
+    - name: seller_state
+      description: Seller state (UF).
+    - name: customer_state
+      description: Customer state (UF).
+  - join_path: base_order_items.base_dates
+    includes:
+    - name: is_holiday
+      description: Purchased on a Brazilian public holiday.

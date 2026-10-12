@@ -1,6 +1,6 @@
 # MetricTrace — Build Specification (v2)
 
-Oct 12, 2026 · @Debola · Revision of v1. Every change from v1 is listed in **Appendix: Changes from v1**. Later deviations are recorded in `docs/decisions/` (0002: RustFS replaces MinIO; 0003: ingestion findings; 0004: dbt findings; 0005: Airflow orchestrates the pipeline).
+Oct 12, 2026 · @Debola · Revision of v1. Every change from v1 is listed in **Appendix: Changes from v1**. Later deviations are recorded in `docs/decisions/` (0002: RustFS replaces MinIO; 0003: ingestion findings; 0004: dbt findings; 0005: Airflow orchestrates the pipeline; 0006: semantic layer findings).
 
 ## Overview
 
@@ -239,8 +239,8 @@ One variable, `APP_ENV=local|aws`, selects the environment. The engineer fills i
 | `LLM_PROVIDER` | Yes | `anthropic` or `openai` | Same | `fake` is allowed in tests and kind smoke only, and rejected when `APP_ENV=aws` |
 | `LLM_MODEL` | Yes | Engineer sets | Same | Never hardcoded |
 | `ANTHROPIC_API_KEY` / `OPENAI_API_KEY` | The one matching `LLM_PROVIDER`; none when `fake` | Engineer sets | Secrets Manager |  |
-| `CUBE_API_SECRET` | Yes | Random string | Secrets Manager | Signs Cube JWTs |
-| `API_BEARER_TOKEN` | Yes | Random string | Secrets Manager | Protects FastAPI |
+| `CUBE_API_SECRET` | Yes | Random string, at least 32 characters | Secrets Manager | Signs Cube JWTs |
+| `API_BEARER_TOKEN` | Yes | Random string, at least 32 characters | Secrets Manager | Protects FastAPI |
 | `LANGSMITH_API_KEY`, `LANGSMITH_PROJECT` | Optional | Engineer sets | Secrets Manager | Tracing switches off when empty |
 | `SIM_START_DATE` | Yes | `2017-01-01` | Same | First day of the replay |
 | `SIM_END_DATE` | Yes | `2018-08-31` | Same | Last day of the replay; avoids the sparse, cancellation-heavy tail |
@@ -412,8 +412,8 @@ Cube defines every metric once over the dbt marts and is the agent's only route 
 - When `APP_ENV=local`, the function returns `SELECT * FROM read_parquet('s3://<bucket>/marts/fct_orders/*.parquet')`, and Cube's DuckDB driver reads RustFS through its S3 settings.
 - When `APP_ENV=aws`, it returns `SELECT * FROM <GLUE_DATABASE>.fct_orders`, and the Athena driver runs the query.
 - Measure and dimension SQL stays plain (column names, `CASE`, arithmetic), so Cube can generate correct SQL for both engines.
-- **Caching:** every cube's `refresh_key` reads the latest dbt run id (`_meta/dbt/latest.json`, exposed through a tiny `dbt_runs` mart), so results refresh after each pipeline run or incident.
-- **Verify first:** before coding, confirm these against the docs for the pinned Cube version:
+- **Caching:** every cube's `refresh_key` reads the dbt invocation id from the one-row `mart_dbt_run` mart. Cube re-checks it at most every 10 seconds (DuckDB) or 2 minutes (Athena), so answers converge to each new build within that interval (decision 0006).
+- **Verified** against the Cube v1.8.3 docs (decision 0006); originally listed as checks to make before coding:
   - the Jinja `globals.py` mechanism
   - the DuckDB driver's S3 environment variable names
   - that the Athena driver falls back to the default AWS credential chain (IRSA) when no keys are set
@@ -427,7 +427,7 @@ Cube defines every metric once over the dbt marts and is the agent's only route 
 | `revenue_incl_freight` | Item price plus freight, non-cancelled orders | Sum | Item | BRL (also USD) | 0 |
 | `payments_collected` | Sum of payment value for non-cancelled orders | Sum | Payment | BRL | 0 |
 | `orders` | Count of orders (all statuses) | Count | Order | Orders | 0 |
-| `aov` | `gmv` / count of **non-cancelled** orders | Ratio | Order | BRL | 0 |
+| `aov` | `gmv` / count of **non-cancelled** orders (a cross-cube measure: some non-cancelled orders have no items) | Ratio | Order | BRL | 0 |
 | `cancellation_rate` | Cancelled orders / all orders | Ratio | Order | % | 30 |
 | `on_time_delivery_rate` | Delivered orders whose delivery **date** ≤ estimated **date** / delivered orders with a valid delivery date | Ratio | Order | % | 60 |
 | `avg_delivery_days` | Mean days from purchase to customer delivery, over delivered orders with a valid date | Ratio (average) | Order | Days | 60 |
@@ -451,7 +451,7 @@ Each measure carries Cube `meta` fields that the agent reads: `description`, `un
 | `orders`, `aov`, `cancellation_rate`, delivery metrics (order) | customer state, holiday flag |
 | `avg_review_score`, `negative_review_rate` (review) | customer state |
 | `active_sellers` (seller) | seller state |
-| `returning_customer_rate` (customer) | customer state of the period's order (uses the order's state, not `dim_customers`; documented) |
+| `returning_customer_rate` (customer) | none: one person can order from several states in a period, so per-state counts of people do not add up (decision 0006) |
 
 **Ambiguous terms.** `cube/ambiguous_terms.yaml` maps words like "revenue" or "sales" to candidate metrics. The agent either asks the user to choose, or uses the listed default (`gmv`) and says so in the answer.
 

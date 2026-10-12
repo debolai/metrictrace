@@ -1,0 +1,82 @@
+cubes:
+  - name: base_orders
+    description: One row per order in its current state (dbt mart fct_orders).
+    sql: {{ mart('fct_orders') }}
+    public: false
+    refresh_key:
+      sql: {{ latest_dbt_run() }}
+
+    joins:
+      - name: base_order_items
+        relationship: one_to_many
+        sql: "{CUBE}.order_id = {base_order_items}.order_id"
+      - name: base_dates
+        relationship: many_to_one
+        sql: "{CUBE}.purchase_date = {base_dates}.date_day"
+
+    dimensions:
+      - name: order_id
+        sql: order_id
+        type: string
+        primary_key: true
+      - name: purchase_date
+        sql: purchase_date
+        type: time
+      - name: customer_state
+        sql: customer_state
+        type: string
+      - name: order_status
+        sql: order_status
+        type: string
+      - name: is_cancelled
+        sql: is_cancelled
+        type: boolean
+
+    measures:
+      - name: orders
+        type: count
+      - name: cancelled_orders
+        type: count
+        filters:
+          - sql: "{CUBE}.is_cancelled"
+      - name: non_cancelled_orders
+        type: count
+        filters:
+          - sql: "NOT {CUBE}.is_cancelled"
+      - name: delivered_orders
+        description: Delivered orders with a known delivery date.
+        type: count
+        filters:
+          - sql: "{CUBE}.has_valid_delivery_date"
+      - name: on_time_orders
+        type: count
+        filters:
+          - sql: "{CUBE}.has_valid_delivery_date AND NOT {CUBE}.is_late"
+      - name: total_delivery_days
+        sql: delivery_days
+        type: sum
+        filters:
+          - sql: "{CUBE}.has_valid_delivery_date"
+      - name: customers
+        sql: customer_unique_id
+        type: count_distinct
+      - name: returning_customers
+        sql: customer_unique_id
+        type: count_distinct
+        filters:
+          - sql: "NOT {CUBE}.is_first_order"
+      - name: cancellation_rate
+        type: number
+        sql: "1.0 * {CUBE.cancelled_orders} / NULLIF({CUBE.orders}, 0)"
+      - name: on_time_delivery_rate
+        type: number
+        sql: "1.0 * {CUBE.on_time_orders} / NULLIF({CUBE.delivered_orders}, 0)"
+      - name: avg_delivery_days
+        type: number
+        sql: "1.0 * {CUBE.total_delivery_days} / NULLIF({CUBE.delivered_orders}, 0)"
+      - name: returning_customer_rate
+        type: number
+        sql: "1.0 * {CUBE.returning_customers} / NULLIF({CUBE.customers}, 0)"
+      - name: aov
+        type: number
+        sql: "1.0 * {base_order_items.gmv} / NULLIF({CUBE.non_cancelled_orders}, 0)"

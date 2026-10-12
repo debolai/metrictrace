@@ -129,9 +129,14 @@ def test_main_reports_success(env: pytest.MonkeyPatch, capsys: pytest.CaptureFix
     assert config.main(env_file=None) == 0
     output = capsys.readouterr().out
     assert "Configuration OK (APP_ENV=local)" in output
-    assert "bearer-secret-value" not in output
+    assert "bearer-secret-value-0123456789abcdef" not in output
 
 
 def test_main_reports_failure(env: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]) -> None:
     assert config.main(env_file=None) == 1
     assert "APP_ENV" in capsys.readouterr().err
+
+
+def test_short_service_secrets_are_rejected(env: pytest.MonkeyPatch) -> None:
+    message = problems_for(env, {**VALID_LOCAL, "CUBE_API_SECRET": "short"})
+    assert "CUBE_API_SECRET must be at least 32 characters" in message
