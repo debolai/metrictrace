@@ -1,0 +1,483 @@
+# Mart contracts: every column with its type (checked against the built Parquet by
+# matches_declared_columns), description and tests. Warn-level tests detect incidents
+# without stopping the build (test severity policy, spec Phase 3).
+version: 2
+models:
+- name: fct_orders
+  description: One row per order in its current state, with item, freight and payment totals in BRL (and
+    USD at the purchase-day rate). Cancelled means canceled or unavailable.
+  data_tests: &id002
+  - &id004
+    matches_declared_columns: {}
+  columns:
+  - name: order_id
+    data_type: VARCHAR
+    description: Order key.
+    data_tests: &id003
+    - unique
+    - not_null
+  - name: customer_unique_id
+    data_type: VARCHAR
+    description: The person who placed the order.
+    data_tests:
+    - not_null
+    - relationships:
+        arguments:
+          to: ref('dim_customers')
+          field: customer_unique_id
+        config: &id001
+          severity: warn
+  - name: customer_id
+    data_type: VARCHAR
+    description: Olist's per-order customer key.
+  - name: customer_state
+    data_type: VARCHAR
+    description: Customer state (UF) for this order.
+  - name: order_status
+    data_type: VARCHAR
+    description: Current status.
+    data_tests:
+    - accepted_values:
+        arguments:
+          values:
+          - created
+          - approved
+          - invoiced
+          - processing
+          - shipped
+          - delivered
+          - canceled
+          - unavailable
+        config: *id001
+  - name: is_cancelled
+    data_type: BOOLEAN
+    description: Status is canceled or unavailable.
+  - name: purchased_at
+    data_type: TIMESTAMP
+    description: Purchase timestamp.
+  - name: purchase_date
+    data_type: DATE
+    description: Purchase day; the time dimension of every metric.
+    data_tests:
+    - not_null
+  - name: approved_at
+    data_type: TIMESTAMP
+    description: Payment approval, once known.
+  - name: shipped_at
+    data_type: TIMESTAMP
+    description: Handover to the carrier, once known.
+  - name: delivered_at
+    data_type: TIMESTAMP
+    description: Delivery to the customer, once known.
+  - name: estimated_delivery_date
+    data_type: DATE
+    description: Delivery date promised at purchase.
+  - name: has_valid_delivery_date
+    data_type: BOOLEAN
+    description: Delivered with a known delivery date; the population of delivery metrics.
+  - name: delivery_days
+    data_type: BIGINT
+    description: Days from purchase date to delivery date.
+  - name: is_late
+    data_type: BOOLEAN
+    description: Delivered after the estimated date (dates compared).
+  - name: is_first_order
+    data_type: BOOLEAN
+    description: The person's first order in the replay.
+  - name: item_count
+    data_type: BIGINT
+    description: Number of items.
+  - name: items_value
+    data_type: DOUBLE
+    description: Sum of item prices, BRL.
+  - name: freight_value
+    data_type: DOUBLE
+    description: Sum of freight, BRL.
+  - name: items_value_usd
+    data_type: DOUBLE
+    description: Sum of item prices, USD at the purchase-day rate.
+  - name: freight_value_usd
+    data_type: DOUBLE
+    description: Sum of freight, USD at the purchase-day rate.
+  - name: payment_value
+    data_type: DOUBLE
+    description: Sum of payments, BRL.
+  - name: is_holiday
+    data_type: BOOLEAN
+    description: Purchased on a Brazilian public holiday.
+  - name: current_drop_date
+    data_type: DATE
+    description: Simulated day of the order's latest version.
+- name: fct_order_items
+  description: One row per order item, with the order's state, category, seller and customer location.
+  data_tests: *id002
+  columns:
+  - name: order_item_key
+    data_type: VARCHAR
+    description: order_id-order_item_id.
+    data_tests: *id003
+  - name: order_id
+    data_type: VARCHAR
+    description: Order key.
+    data_tests:
+    - relationships:
+        arguments:
+          to: ref('fct_orders')
+          field: order_id
+        config: *id001
+  - name: order_item_id
+    data_type: INTEGER
+    description: Item number within the order.
+  - name: product_id
+    data_type: VARCHAR
+    description: Product key.
+    data_tests:
+    - relationships:
+        arguments:
+          to: ref('dim_products')
+          field: product_id
+        config: *id001
+  - name: seller_id
+    data_type: VARCHAR
+    description: Seller key.
+    data_tests:
+    - relationships:
+        arguments:
+          to: ref('dim_sellers')
+          field: seller_id
+        config: *id001
+  - name: purchase_date
+    data_type: DATE
+    description: Order purchase day.
+  - name: is_cancelled
+    data_type: BOOLEAN
+    description: The order is cancelled.
+  - name: category
+    data_type: VARCHAR
+    description: Product category in English ('unknown' if missing or untranslated).
+  - name: seller_state
+    data_type: VARCHAR
+    description: Seller state (UF).
+  - name: customer_state
+    data_type: VARCHAR
+    description: Customer state (UF).
+  - name: price
+    data_type: DOUBLE
+    description: Item price, BRL.
+  - name: freight_value
+    data_type: DOUBLE
+    description: Freight, BRL.
+  - name: price_usd
+    data_type: DOUBLE
+    description: Item price, USD at the purchase-day rate.
+  - name: freight_value_usd
+    data_type: DOUBLE
+    description: Freight, USD at the purchase-day rate.
+- name: fct_payments
+  description: One row per payment line.
+  data_tests: *id002
+  columns:
+  - name: payment_key
+    data_type: VARCHAR
+    description: order_id-payment_sequential.
+    data_tests: *id003
+  - name: order_id
+    data_type: VARCHAR
+    description: Order key.
+    data_tests:
+    - relationships:
+        arguments:
+          to: ref('fct_orders')
+          field: order_id
+        config: *id001
+  - name: payment_sequential
+    data_type: INTEGER
+    description: Payment number within the order.
+  - name: payment_type
+    data_type: VARCHAR
+    description: Payment method.
+    data_tests:
+    - accepted_values:
+        arguments:
+          values:
+          - credit_card
+          - boleto
+          - voucher
+          - debit_card
+          - not_defined
+        config: *id001
+  - name: payment_installments
+    data_type: INTEGER
+    description: Number of installments.
+  - name: payment_value
+    data_type: DOUBLE
+    description: Amount, BRL (includes installment interest).
+  - name: purchase_date
+    data_type: DATE
+    description: Order purchase day.
+  - name: is_cancelled
+    data_type: BOOLEAN
+    description: The order is cancelled.
+  - name: customer_state
+    data_type: VARCHAR
+    description: Customer state (UF).
+- name: fct_reviews
+  description: One row per review per order (some review_id values cover several orders).
+  data_tests: *id002
+  columns:
+  - name: review_key
+    data_type: VARCHAR
+    description: review_id-order_id.
+    data_tests: *id003
+  - name: review_id
+    data_type: VARCHAR
+    description: Review id as issued by Olist.
+  - name: order_id
+    data_type: VARCHAR
+    description: Order key.
+    data_tests:
+    - relationships:
+        arguments:
+          to: ref('fct_orders')
+          field: order_id
+        config: *id001
+  - name: review_score
+    data_type: INTEGER
+    description: Score from 1 to 5.
+  - name: is_negative
+    data_type: BOOLEAN
+    description: Score of 1 or 2.
+  - name: created_at
+    data_type: TIMESTAMP
+    description: When the review survey was created.
+  - name: arrived_on
+    data_type: DATE
+    description: Simulated day the review arrived.
+  - name: purchase_date
+    data_type: DATE
+    description: Order purchase day.
+  - name: customer_state
+    data_type: VARCHAR
+    description: Customer state (UF).
+- name: dim_customers
+  description: One row per person (customer_unique_id); location from their latest order.
+  data_tests: *id002
+  columns:
+  - name: customer_unique_id
+    data_type: VARCHAR
+    description: Person key.
+    data_tests: *id003
+  - name: first_order_date
+    data_type: DATE
+    description: Purchase day of their first order in the replay.
+  - name: order_count
+    data_type: BIGINT
+    description: Orders in the replay.
+  - name: state
+    data_type: VARCHAR
+    description: State (UF) of their latest order.
+  - name: city
+    data_type: VARCHAR
+    description: City of their latest order.
+  - name: zip_code_prefix
+    data_type: VARCHAR
+    description: Zip prefix of their latest order.
+- name: dim_sellers
+  description: One row per seller, with Brazil macro-region and coordinates.
+  data_tests: *id002
+  columns:
+  - name: seller_id
+    data_type: VARCHAR
+    description: Seller key.
+    data_tests: *id003
+  - name: state
+    data_type: VARCHAR
+    description: State (UF).
+  - name: region
+    data_type: VARCHAR
+    description: Brazil macro-region.
+    data_tests:
+    - accepted_values:
+        arguments:
+          values:
+          - North
+          - Northeast
+          - Central-West
+          - Southeast
+          - South
+        config: *id001
+  - name: city
+    data_type: VARCHAR
+    description: City.
+  - name: zip_code_prefix
+    data_type: VARCHAR
+    description: Zip prefix.
+  - name: latitude
+    data_type: DOUBLE
+    description: Median latitude of the zip prefix.
+  - name: longitude
+    data_type: DOUBLE
+    description: Median longitude of the zip prefix.
+- name: dim_products
+  description: One row per product, with English category.
+  data_tests: *id002
+  columns:
+  - name: product_id
+    data_type: VARCHAR
+    description: Product key.
+    data_tests: *id003
+  - name: category
+    data_type: VARCHAR
+    description: Category in English; 'unknown' if missing or untranslated.
+    data_tests:
+    - not_null
+  - name: category_name_pt
+    data_type: VARCHAR
+    description: Category as delivered (Portuguese).
+  - name: is_untranslated
+    data_type: BOOLEAN
+    description: Has a category with no English translation.
+  - name: is_missing_category
+    data_type: BOOLEAN
+    description: Has no category.
+  - name: name_length
+    data_type: INTEGER
+    description: Characters in the product name.
+  - name: description_length
+    data_type: INTEGER
+    description: Characters in the description.
+  - name: photos_qty
+    data_type: INTEGER
+    description: Number of photos.
+  - name: weight_g
+    data_type: DOUBLE
+    description: Weight, grams.
+  - name: length_cm
+    data_type: DOUBLE
+    description: Length, cm.
+  - name: height_cm
+    data_type: DOUBLE
+    description: Height, cm.
+  - name: width_cm
+    data_type: DOUBLE
+    description: Width, cm.
+- name: dim_date
+  description: One row per day of the replay window, with Brazilian public holidays.
+  data_tests: *id002
+  columns:
+  - name: date_day
+    data_type: DATE
+    description: Calendar day.
+    data_tests: *id003
+  - name: week_start
+    data_type: DATE
+    description: Monday of the ISO week.
+  - name: month_start
+    data_type: DATE
+    description: First day of the month.
+  - name: calendar_year
+    data_type: BIGINT
+    description: Year.
+  - name: calendar_month
+    data_type: BIGINT
+    description: Month number.
+  - name: iso_weekday
+    data_type: BIGINT
+    description: 1 = Monday ... 7 = Sunday.
+  - name: weekday_name
+    data_type: VARCHAR
+    description: Weekday name.
+  - name: is_weekend
+    data_type: BOOLEAN
+    description: Saturday or Sunday.
+  - name: is_holiday
+    data_type: BOOLEAN
+    description: A Brazilian public holiday.
+  - name: holiday_name
+    data_type: VARCHAR
+    description: Holiday name, if any.
+- name: mart_data_health_daily
+  description: 'Data health per daily source per simulated day: expected vs received drops, row counts
+    and anomalies, quarantine, late arrivals, untranslated categories and FX gaps. Feeds the investigation
+    engine.'
+  data_tests:
+  - *id004
+  - unique_combination:
+      arguments:
+        columns:
+        - source
+        - drop_date
+  - expression_is_true:
+      name: health_no_missing_drops
+      arguments:
+        expression: not is_missing
+      config: *id001
+  - expression_is_true:
+      name: health_no_failed_drops
+      arguments:
+        expression: not coalesce(is_failed, false)
+      config: *id001
+  - expression_is_true:
+      name: health_row_count_within_normal_range
+      arguments:
+        expression: row_count_zscore is null or abs(row_count_zscore) <= {{ var('row_count_zscore_threshold')
+          }}
+      config: *id001
+  - expression_is_true:
+      name: health_untranslated_categories_below_threshold
+      arguments:
+        expression: untranslated_category_share is null or untranslated_category_share <= {{ var('max_untranslated_category_share')
+          }}
+      config: *id001
+  - expression_is_true:
+      name: health_fx_gaps_short
+      arguments:
+        expression: fx_days_since_observed is null or fx_days_since_observed <= 4
+      config: *id001
+  columns:
+  - name: source
+    data_type: VARCHAR
+    description: Daily source, e.g. olist/orders or fx.
+    data_tests:
+    - not_null
+  - name: drop_date
+    data_type: DATE
+    description: Simulated day.
+    data_tests:
+    - not_null
+  - name: is_received
+    data_type: BOOLEAN
+    description: An ingestion record exists for this day.
+  - name: is_missing
+    data_type: BOOLEAN
+    description: Expected but never ingested.
+  - name: status
+    data_type: VARCHAR
+    description: ok, empty or failed (null when missing).
+  - name: is_failed
+    data_type: BOOLEAN
+    description: The drop was rejected by its contract.
+  - name: row_count
+    data_type: BIGINT
+    description: Rows landed in the raw zone.
+  - name: quarantine_count
+    data_type: BIGINT
+    description: Rows quarantined.
+  - name: input_rows
+    data_type: BIGINT
+    description: Rows delivered.
+  - name: row_count_zscore
+    data_type: DOUBLE
+    description: Row count vs the previous 28 days of the same source (needs 7), with the spread floored at sqrt(mean).
+  - name: late_arrival_share
+    data_type: DOUBLE
+    description: 'olist/orders only: share of versions for orders purchased on earlier days.'
+  - name: untranslated_category_share
+    data_type: DOUBLE
+    description: 'olist/products only: share of products whose category has no translation.'
+  - name: fx_is_filled
+    data_type: BOOLEAN
+    description: 'fx only: no rate published; the previous rate is carried forward.'
+  - name: fx_days_since_observed
+    data_type: BIGINT
+    description: 'fx only: days since a rate was last published.'

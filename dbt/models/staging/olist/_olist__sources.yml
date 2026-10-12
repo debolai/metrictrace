@@ -1,0 +1,38 @@
+version: 2
+
+sources:
+  - name: olist
+    description: >
+      Olist marketplace tables replayed as daily drops into the raw zone. Each table is
+      append-only Parquet partitioned by simulated drop date; drop_date comes from the
+      Hive partition path.
+    config:
+      external_location: >-
+        read_parquet('s3://{{ env_var("LAKE_BUCKET") }}/raw/olist/{name}/*/*.parquet',
+        hive_partitioning = true)
+      loaded_at_field: _ingested_at
+      freshness:
+        warn_after: {count: 1, period: day}
+        error_after: {count: 2, period: day}
+    tables:
+      - name: orders
+        description: Order versions; one per order per day on which its state changed.
+      - name: order_items
+      - name: order_payments
+      - name: order_reviews
+      - name: customers
+        description: One row per customer_id, which Olist issues per order.
+      - name: sellers
+      - name: products
+      - name: product_category_name_translation
+        description: Reference data, loaded once.
+        config:
+          external_location: >-
+            read_parquet('s3://{{ env_var("LAKE_BUCKET") }}/raw/olist/product_category_name_translation/*.parquet')
+          freshness: null
+      - name: geolocation
+        description: Reference data, loaded once; one row per zip-code prefix.
+        config:
+          external_location: >-
+            read_parquet('s3://{{ env_var("LAKE_BUCKET") }}/raw/olist/geolocation/*.parquet')
+          freshness: null

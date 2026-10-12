@@ -27,6 +27,9 @@ _DUCKDB_CONFIG: dict[str, str | bool | int | float | list[str]] = {
     "autoload_known_extensions": False,
     "allow_persistent_secrets": False,
 }
+# Set after httpfs loads. DuckDB otherwise opens a new connection per HTTP request, which
+# exhausts a local port forwarder within seconds and costs a TLS handshake per request on S3.
+_HTTP_SETTINGS = ("set httpfs_connection_caching = true",)
 
 
 class LakeKeyError(ValueError):
@@ -85,6 +88,17 @@ class LakeClient:
 
     def bucket_exists(self) -> bool:
         return bool(self.fs.exists(self.bucket))
+
+    def ensure_bucket(self, create: bool) -> None:
+        """Create the bucket if it is missing and ``create`` is allowed; otherwise raise.
+
+        Locally the bucket is ours to create; on AWS Terraform owns it.
+        """
+        if self.bucket_exists():
+            return
+        if not create:
+            raise LakeSetupError(f"lake bucket {self.bucket!r} does not exist")
+        self.fs.mkdir(self.bucket)
 
     def exists(self, key: str) -> bool:
         return bool(self.fs.exists(self._path(key)))
@@ -175,6 +189,8 @@ def connect(settings: Settings, database: str = ":memory:") -> duckdb.DuckDBPyCo
                 raise LakeSetupError(
                     f"DuckDB extension {name!r} is not installed; run `make duckdb-extensions`"
                 ) from error
+        for statement in _HTTP_SETTINGS:
+            con.execute(statement)
         con.execute(s3_secret_sql(settings))
     except BaseException:
         con.close()

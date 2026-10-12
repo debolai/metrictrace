@@ -1,0 +1,34 @@
+version: 2
+
+exposures:
+  - name: cube_semantic_layer
+    label: Cube semantic layer
+    type: application
+    maturity: medium
+    description: >
+      Defines every business metric once over the marts. The agent queries metrics only
+      through Cube views; it never writes SQL.
+    owner:
+      name: MetricTrace analytics engineering
+    depends_on:
+      - ref('fct_orders')
+      - ref('fct_order_items')
+      - ref('fct_payments')
+      - ref('fct_reviews')
+      - ref('dim_customers')
+      - ref('dim_sellers')
+      - ref('dim_products')
+      - ref('dim_date')
+
+  - name: metrictrace_agent
+    label: MetricTrace agent (Ask and Investigate)
+    type: application
+    maturity: medium
+    description: >
+      Answers metric questions through Cube and explains metric changes with the
+      investigation engine, which also reads data health and dbt artifacts.
+    owner:
+      name: MetricTrace analytics engineering
+    depends_on:
+      - ref('mart_data_health_daily')
+      - ref('fct_orders')

@@ -1,0 +1,125 @@
+version: 2
+
+models:
+  - name: int_orders_current
+    description: The latest version of each order, by simulated drop date.
+    columns:
+      - name: order_id
+        data_tests: [unique, not_null]
+
+  - name: int_order_status_history
+    description: Order states with valid_from (inclusive) and valid_to (exclusive) dates.
+    data_tests:
+      - unique_combination:
+          arguments:
+            columns: [order_id, valid_from]
+
+  - name: int_fx_daily_filled
+    description: A rate for every ingested day; weekends and holidays carry the last published rate.
+    columns:
+      - name: rate_date
+        data_tests: [unique, not_null]
+      - name: usd_per_brl
+        data_tests:
+          - not_null:
+              config:
+                severity: warn
+
+  - name: int_order_delivery
+    columns:
+      - name: order_id
+        data_tests: [unique, not_null]
+
+  - name: int_customer_orders
+    columns:
+      - name: order_id
+        data_tests: [unique, not_null]
+
+  - name: int_order_items_enriched
+    data_tests:
+      - unique_combination:
+          arguments:
+            columns: [order_id, order_item_id]
+
+unit_tests:
+  - name: latest_version_wins_even_when_an_old_date_is_reingested
+    description: The delivered version stays current although the purchase-day drop was re-ingested later.
+    model: int_orders_current
+    given:
+      - input: ref('stg_olist__order_versions')
+        rows:
+          - {order_id: o1, order_status: created, purchased_at: "2018-03-01 10:00:00", drop_date: "2018-03-01", ingested_at: "2026-01-02 00:00:00+00"}
+          - {order_id: o1, order_status: delivered, purchased_at: "2018-03-01 10:00:00", delivered_at: "2018-03-10 09:00:00", drop_date: "2018-03-10", ingested_at: "2026-01-01 00:00:00+00"}
+          - {order_id: o2, order_status: unavailable, purchased_at: "2018-03-02 10:00:00", drop_date: "2018-03-03", ingested_at: "2026-01-01 00:00:00+00"}
+    expect:
+      rows:
+        - {order_id: o1, order_status: delivered, purchase_date: "2018-03-01", is_cancelled: false, current_drop_date: "2018-03-10"}
+        - {order_id: o2, order_status: unavailable, purchase_date: "2018-03-02", is_cancelled: true, current_drop_date: "2018-03-03"}
+
+  - name: status_history_boundaries
+    model: int_order_status_history
+    given:
+      - input: ref('stg_olist__order_versions')
+        rows:
+          - {order_id: o1, order_status: created, drop_date: "2018-03-01"}
+          - {order_id: o1, order_status: shipped, drop_date: "2018-03-04"}
+          - {order_id: o1, order_status: delivered, drop_date: "2018-03-09"}
+    expect:
+      rows:
+        - {order_id: o1, order_status: created, valid_from: "2018-03-01", valid_to: "2018-03-04", is_current: false}
+        - {order_id: o1, order_status: shipped, valid_from: "2018-03-04", valid_to: "2018-03-09", is_current: false}
+        - {order_id: o1, order_status: delivered, valid_from: "2018-03-09", valid_to: null, is_current: true}
+
+  - name: fx_forward_fills_weekends
+    description: Friday's rate carries over Saturday and Sunday; Monday is observed again.
+    model: int_fx_daily_filled
+    given:
+      - input: ref('stg_fx__rates')
+        rows:
+          - {rate_date: "2018-05-11", usd_per_brl: 0.28, eur_per_brl: 0.24}
+          - {rate_date: "2018-05-14", usd_per_brl: 0.27, eur_per_brl: 0.23}
+      - input: ref('stg_meta__ingestion')
+        rows:
+          - {source: fx, drop_date: "2018-05-14"}
+          - {source: olist/orders, drop_date: "2018-05-20"}
+    expect:
+      rows:
+        - {rate_date: "2018-05-11", usd_per_brl: 0.28, is_filled: false, days_since_observed: 0}
+        - {rate_date: "2018-05-12", usd_per_brl: 0.28, is_filled: true, days_since_observed: 1}
+        - {rate_date: "2018-05-13", usd_per_brl: 0.28, is_filled: true, days_since_observed: 2}
+        - {rate_date: "2018-05-14", usd_per_brl: 0.27, is_filled: false, days_since_observed: 0}
+
+  - name: is_late_compares_dates_not_timestamps
+    model: int_order_delivery
+    given:
+      - input: ref('int_orders_current')
+        rows:
+          - {order_id: same_day_evening, order_status: delivered, purchase_date: "2018-03-01", delivered_at: "2018-03-20 23:00:00", estimated_delivery_date: "2018-03-20"}
+          - {order_id: next_day, order_status: delivered, purchase_date: "2018-03-01", delivered_at: "2018-03-21 01:00:00", estimated_delivery_date: "2018-03-20"}
+          - {order_id: no_date, order_status: delivered, purchase_date: "2018-03-01", delivered_at: null, estimated_delivery_date: "2018-03-20"}
+          - {order_id: in_transit, order_status: shipped, purchase_date: "2018-03-01", delivered_at: null, estimated_delivery_date: "2018-03-20"}
+    expect:
+      rows:
+        - {order_id: same_day_evening, has_valid_delivery_date: true, delivery_days: 19, is_late: false}
+        - {order_id: next_day, has_valid_delivery_date: true, delivery_days: 20, is_late: true}
+        - {order_id: no_date, has_valid_delivery_date: false, delivery_days: null, is_late: null}
+        - {order_id: in_transit, has_valid_delivery_date: false, delivery_days: null, is_late: null}
+
+  - name: first_order_is_per_person_not_per_customer_id
+    model: int_customer_orders
+    given:
+      - input: ref('int_orders_current')
+        rows:
+          - {order_id: a, customer_id: c1, purchased_at: "2018-03-01 10:00:00"}
+          - {order_id: b, customer_id: c2, purchased_at: "2018-04-01 10:00:00"}
+          - {order_id: c, customer_id: c3, purchased_at: "2018-03-15 10:00:00"}
+      - input: ref('stg_olist__customers')
+        rows:
+          - {customer_id: c1, customer_unique_id: person_1}
+          - {customer_id: c2, customer_unique_id: person_1}
+          - {customer_id: c3, customer_unique_id: person_2}
+    expect:
+      rows:
+        - {order_id: a, customer_unique_id: person_1, customer_order_number: 1, is_first_order: true}
+        - {order_id: b, customer_unique_id: person_1, customer_order_number: 2, is_first_order: false}
+        - {order_id: c, customer_unique_id: person_2, customer_order_number: 1, is_first_order: true}

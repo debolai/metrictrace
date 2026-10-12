@@ -1,0 +1,16 @@
+version: 2
+
+models:
+  - name: stg_fx__rates
+    description: Published ECB rates, one row per rate date, as units of USD and EUR per 1 BRL.
+    columns:
+      - name: rate_date
+        data_tests: [unique, not_null]
+      - name: usd_per_brl
+        data_tests: [not_null]
+
+  - name: stg_holidays
+    data_tests:
+      - unique_combination:
+          arguments:
+            columns: [holiday_date, holiday_name]

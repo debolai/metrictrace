@@ -1,0 +1,15 @@
+version: 2
+
+models:
+  - name: stg_meta__ingestion
+    description: One record per landed drop, written by ingestion to _meta/ingestion/.
+    data_tests:
+      - unique_combination:
+          arguments:
+            columns: [source, partition_key]
+    columns:
+      - name: status
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: [ok, empty, failed]

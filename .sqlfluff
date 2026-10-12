@@ -1,8 +1,10 @@
-# The dbt templater (sqlfluff-templater-dbt) is installed with dbt-duckdb in Phase 3.
 [sqlfluff]
 dialect = duckdb
 templater = dbt
 max_line_length = 100
+# ST06 (wildcards and simple columns before calculations) conflicts with the mart
+# convention of keys, then attributes, then measures.
+exclude_rules = ST06
 
 [sqlfluff:templater:dbt]
 project_dir = dbt

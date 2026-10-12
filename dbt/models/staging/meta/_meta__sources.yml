@@ -1,0 +1,11 @@
+version: 2
+
+sources:
+  - name: lake_meta
+    description: Records written by ingestion; one JSON document per source per drop.
+    tables:
+      - name: ingestion
+        config:
+          external_location: >-
+            read_json('s3://{{ env_var("LAKE_BUCKET") }}/_meta/ingestion/**/*.json',
+            format = 'auto', filename = true)

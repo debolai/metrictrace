@@ -1,0 +1,55 @@
+# Every value comes from the environment; `metrictrace transform` derives these
+# variables from the validated settings, so nothing here is hardcoded.
+metrictrace:
+  target: "{{ env_var('DBT_TARGET', 'local') }}"
+  outputs:
+    local:
+      type: duckdb
+      # A scratch file under target/, deleted at the start of every transform: runs start
+      # clean (no persistent database), and later commands such as docs generate can see
+      # the relations the build created.
+      path: "{{ env_var('DBT_DUCKDB_PATH') }}"
+      threads: 4
+      # Retry transient object-storage errors (e.g. S3 throttling) instead of failing the run.
+      retries:
+        query_attempts: 3
+        retryable_exceptions: [IOException]
+      extensions: [httpfs, aws]
+      settings:
+        autoinstall_known_extensions: false
+        # Reuse HTTP connections. DuckDB's default opens one per request, which exhausts
+        # the local port forwarder and costs a TLS handshake per request on S3 (decision 0004).
+        httpfs_connection_caching: true
+      external_root: "s3://{{ env_var('LAKE_BUCKET') }}/marts"
+      secrets:
+        - type: s3
+          key_id: "{{ env_var('DBT_S3_KEY_ID') }}"
+          secret: "{{ env_var('DBT_S3_SECRET') }}"
+          region: "{{ env_var('AWS_REGION') }}"
+          endpoint: "{{ env_var('DBT_S3_ENDPOINT') }}"
+          url_style: path
+          use_ssl: "{{ env_var('DBT_S3_USE_SSL') }}"
+          scope: "s3://{{ env_var('LAKE_BUCKET') }}"
+    aws:
+      type: duckdb
+      # A scratch file under target/, deleted at the start of every transform: runs start
+      # clean (no persistent database), and later commands such as docs generate can see
+      # the relations the build created.
+      path: "{{ env_var('DBT_DUCKDB_PATH') }}"
+      threads: 4
+      # Retry transient object-storage errors (e.g. S3 throttling) instead of failing the run.
+      retries:
+        query_attempts: 3
+        retryable_exceptions: [IOException]
+      extensions: [httpfs, aws]
+      settings:
+        autoinstall_known_extensions: false
+        # Reuse HTTP connections. DuckDB's default opens one per request, which exhausts
+        # the local port forwarder and costs a TLS handshake per request on S3 (decision 0004).
+        httpfs_connection_caching: true
+      external_root: "s3://{{ env_var('LAKE_BUCKET') }}/marts"
+      secrets:
+        - type: s3
+          provider: credential_chain
+          region: "{{ env_var('AWS_REGION') }}"
+          scope: "s3://{{ env_var('LAKE_BUCKET') }}"
