@@ -1,0 +1,173 @@
+{
+  "as_of": {
+    "2018-04-30": {
+      "by_month": {
+        "2018-02": {
+          "active_sellers": 243,
+          "aov": 124.50302439024391,
+          "avg_delivery_days": 16.159600997506235,
+          "avg_review_score": 3.839160839160839,
+          "cancellation_rate": 0.023809523809523808,
+          "gmv": 51046.240000000005,
+          "gmv_usd": 15735.376924499998,
+          "negative_review_rate": 0.20745920745920746,
+          "on_time_delivery_rate": 0.8678304239401496,
+          "orders": 420,
+          "payments_collected": 60334.72,
+          "returning_customer_rate": 0.009615384615384616,
+          "revenue_incl_freight": 60128.38,
+          "revenue_incl_freight_usd": 18533.8700723
+        },
+        "2018-03": {
+          "active_sellers": 234,
+          "aov": 140.07979695431473,
+          "avg_delivery_days": 15.26595744680851,
+          "avg_review_score": 3.8496240601503757,
+          "cancellation_rate": 0.015,
+          "gmv": 55191.44,
+          "gmv_usd": 16822.6881106,
+          "negative_review_rate": 0.20300751879699247,
+          "on_time_delivery_rate": 0.848404255319149,
+          "orders": 400,
+          "payments_collected": 64217.36,
+          "returning_customer_rate": 0.0025,
+          "revenue_incl_freight": 64217.37,
+          "revenue_incl_freight_usd": 19574.767470500003
+        },
+        "2018-04": {
+          "active_sellers": 262,
+          "aov": 149.94128205128206,
+          "avg_delivery_days": 7.925093632958801,
+          "avg_review_score": 4.312252964426878,
+          "cancellation_rate": 0.006944444444444444,
+          "gmv": 64324.810000000005,
+          "gmv_usd": 18931.132155799998,
+          "negative_review_rate": 0.1067193675889328,
+          "on_time_delivery_rate": 0.9962546816479401,
+          "orders": 432,
+          "payments_collected": 73806.59,
+          "returning_customer_rate": 0.009302325581395349,
+          "revenue_incl_freight": 73806.23000000001,
+          "revenue_incl_freight_usd": 21719.9132519
+        }
+      },
+      "overall": {
+        "active_sellers": 516,
+        "aov": 138.33129764801296,
+        "avg_delivery_days": 13.731800766283525,
+        "avg_review_score": 3.9537465309898243,
+        "cancellation_rate": 0.015175718849840255,
+        "gmv": 170562.49,
+        "gmv_usd": 51489.1971909,
+        "negative_review_rate": 0.1822386679000925,
+        "on_time_delivery_rate": 0.8936781609195402,
+        "orders": 1252,
+        "payments_collected": 198358.66999999998,
+        "returning_customer_rate": 0.007240547063555913,
+        "revenue_incl_freight": 198151.97999999998,
+        "revenue_incl_freight_usd": 59828.5507947
+      }
+    },
+    "2018-08-29": {
+      "by_month": {
+        "2018-02": {
+          "active_sellers": 243,
+          "aov": 124.50302439024391,
+          "avg_delivery_days": 16.33582089552239,
+          "avg_review_score": 3.839160839160839,
+          "cancellation_rate": 0.023809523809523808,
+          "gmv": 51046.240000000005,
+          "gmv_usd": 15735.376924499998,
+          "negative_review_rate": 0.20745920745920746,
+          "on_time_delivery_rate": 0.8656716417910447,
+          "orders": 420,
+          "payments_collected": 60334.72,
+          "returning_customer_rate": 0.009615384615384616,
+          "revenue_incl_freight": 60128.38,
+          "revenue_incl_freight_usd": 18533.8700723
+        },
+        "2018-03": {
+          "active_sellers": 234,
+          "aov": 140.07979695431473,
+          "avg_delivery_days": 16.17098445595855,
+          "avg_review_score": 3.8383084577114426,
+          "cancellation_rate": 0.015,
+          "gmv": 55191.44,
+          "gmv_usd": 16822.6881106,
+          "negative_review_rate": 0.2064676616915423,
+          "on_time_delivery_rate": 0.8341968911917098,
+          "orders": 400,
+          "payments_collected": 64217.36,
+          "returning_customer_rate": 0.0025,
+          "revenue_incl_freight": 64217.37,
+          "revenue_incl_freight_usd": 19574.767470500003
+        },
+        "2018-04": {
+          "active_sellers": 262,
+          "aov": 149.94128205128206,
+          "avg_delivery_days": 10.995260663507109,
+          "avg_review_score": 4.165116279069768,
+          "cancellation_rate": 0.006944444444444444,
+          "gmv": 64324.810000000005,
+          "gmv_usd": 18931.132155799998,
+          "negative_review_rate": 0.14186046511627906,
+          "on_time_delivery_rate": 0.9644549763033176,
+          "orders": 432,
+          "payments_collected": 73806.59,
+          "returning_customer_rate": 0.009302325581395349,
+          "revenue_incl_freight": 73806.23000000001,
+          "revenue_incl_freight_usd": 21719.9132519
+        },
+        "2018-05": {
+          "active_sellers": 232,
+          "aov": 139.92992,
+          "avg_delivery_days": 11.743243243243244,
+          "avg_review_score": 4.244736842105263,
+          "cancellation_rate": 0.010554089709762533,
+          "gmv": 52473.72,
+          "gmv_usd": 14552.381439699999,
+          "negative_review_rate": 0.1,
+          "on_time_delivery_rate": 0.918918918918919,
+          "orders": 379,
+          "payments_collected": 61354.3,
+          "returning_customer_rate": 0.02127659574468085,
+          "revenue_incl_freight": 61354.3,
+          "revenue_incl_freight_usd": 17016.0142433
+        },
+        "2018-06": {
+          "active_sellers": 242,
+          "aov": 135.3874456521739,
+          "avg_delivery_days": 9.77562326869806,
+          "avg_review_score": 4.266304347826087,
+          "cancellation_rate": 0.0027100271002710027,
+          "gmv": 49822.58,
+          "gmv_usd": 13206.5056812,
+          "negative_review_rate": 0.10054347826086957,
+          "on_time_delivery_rate": 0.9833795013850416,
+          "orders": 369,
+          "payments_collected": 59391.13,
+          "returning_customer_rate": 0.008152173913043478,
+          "revenue_incl_freight": 59391.14000000001,
+          "revenue_incl_freight_usd": 15742.4223232
+        }
+      },
+      "overall": {
+        "active_sellers": 708,
+        "aov": 138.08643218623482,
+        "avg_delivery_days": 13.046367851622875,
+        "avg_review_score": 4.063713290194126,
+        "cancellation_rate": 0.012,
+        "gmv": 272858.79,
+        "gmv_usd": 79248.0843118,
+        "negative_review_rate": 0.15331010452961671,
+        "on_time_delivery_rate": 0.9129314786192684,
+        "orders": 2000,
+        "payments_collected": 319104.1,
+        "returning_customer_rate": 0.009595959595959595,
+        "revenue_incl_freight": 318897.42000000004,
+        "revenue_incl_freight_usd": 92586.9873612
+      }
+    }
+  },
+  "window_start": "2018-02-01"
+}

@@ -4,7 +4,8 @@
 UV_RUN := uv run --frozen
 
 .DEFAULT_GOAL := help
-.PHONY: help install hooks lint format check-env test-unit duckdb-extensions up down clean-lake test-lake
+.PHONY: help install hooks lint format check-env test-unit duckdb-extensions up down clean-lake test-lake \
+	download-data ingest backfill test-ingestion fixtures
 
 help: ## List available targets
 	@grep -E '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  %-14s %s\n", $$1, $$2}'
@@ -29,9 +30,10 @@ lint: ## ruff, mypy --strict and sqlfluff
 		echo "sqlfluff: no SQL under dbt/ yet (added in Phase 3)"; \
 	fi
 
-format: ## Apply ruff formatting and safe lint fixes
-	$(UV_RUN) ruff check --fix .
+format: ## Apply ruff formatting and safe lint fixes (remaining findings: make lint)
 	$(UV_RUN) ruff format .
+	$(UV_RUN) ruff check --fix --exit-zero --quiet .
+	$(UV_RUN) ruff format --quiet .
 
 check-env: ## Validate configuration without starting anything
 	$(UV_RUN) python -m metrictrace.config
@@ -51,3 +53,24 @@ clean-lake: ## Stop the stack and DELETE all local lake data
 
 test-lake: ## Lake unit tests plus integration tests against the running stack
 	$(UV_RUN) pytest tests/unit/test_lake.py tests/integration/test_lake.py
+
+download-data: ## Fetch the public Olist dataset into OLIST_SOURCE_PATH (no account needed)
+	$(UV_RUN) metrictrace download-data
+
+ingest: ## Land one simulated day: make ingest DATE=2017-03-01 [SOURCE=olist|fx|holidays]
+	@test -n "$(DATE)" || (echo "usage: make ingest DATE=YYYY-MM-DD" && exit 2)
+	$(UV_RUN) metrictrace ingest --date $(DATE) --source $(or $(SOURCE),all)
+
+backfill: ## Land a range of days: make backfill FROM=2017-01-01 TO=2017-01-31
+	@test -n "$(FROM)" -a -n "$(TO)" || (echo "usage: make backfill FROM=YYYY-MM-DD TO=YYYY-MM-DD" && exit 2)
+	$(UV_RUN) metrictrace ingest --from $(FROM) --to $(TO) --source $(or $(SOURCE),all)
+
+fixtures: ## Rebuild data/fixtures and golden values from the full download (deterministic)
+	$(UV_RUN) python -m tests.fixtures.build_fixtures
+	$(UV_RUN) python -m tests.oracle.compute_golden
+	$(UV_RUN) python -m tests.oracle.compute_golden --source $(or $(OLIST_SOURCE_PATH),data/raw_download) \
+		--fx-dir data/api_cache/frankfurter --start 2017-01-01 --as-of 2017-06-30 \
+		--out data/fixtures/golden_aws.json
+
+test-ingestion: ## Ingestion unit tests plus the Phase 2 gate against the running stack
+	$(UV_RUN) pytest tests/unit/ingestion tests/unit/test_pipeline.py tests/integration/test_ingestion.py

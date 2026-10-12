@@ -1,6 +1,6 @@
 # MetricTrace — Build Specification (v2)
 
-Oct 12, 2026 · @Debola · Revision of v1. Every change from v1 is listed in **Appendix: Changes from v1**. Later deviations are recorded in `docs/decisions/` (0002: RustFS replaces MinIO).
+Oct 12, 2026 · @Debola · Revision of v1. Every change from v1 is listed in **Appendix: Changes from v1**. Later deviations are recorded in `docs/decisions/` (0002: RustFS replaces MinIO; 0003: ingestion findings).
 
 ## Overview
 
@@ -226,7 +226,12 @@ One variable, `APP_ENV=local|aws`, selects the environment. The engineer fills i
 | `GLUE_CRAWLER_NAME` | AWS | Not used | Terraform output | Started by the publish step |
 | `CUBE_API_URL` | Yes | `http://cube:4000` | In-cluster service URL |  |
 | `API_URL` | Yes (UI) | `http://api:8000` | In-cluster service URL | Used by Streamlit only |
-| `KAGGLE_USERNAME`, `KAGGLE_KEY` | Optional | Engineer sets | Not used | Or download the zip manually into `data/raw_download/` |
+| `OLIST_SOURCE_PATH` | No | `data/raw_download` | Same | Directory of CSVs or the Kaggle zip; `make download-data` fills it |
+| `KAGGLE_USERNAME`, `KAGGLE_KEY` | Optional | Not needed | Not used | Only if anonymous download is refused (decision 0003) |
+| `FX_API_BASE_URL` | No | `https://api.frankfurter.dev/v1` | Same | |
+| `HOLIDAYS_API_BASE_URL` | No | `https://date.nager.at` | Same | |
+| `API_CACHE_DIR` | No | `data/api_cache` | Same | Cached API responses |
+| `API_OFFLINE` | No | `false` | `false` | `true` in tests and CI: recorded responses only |
 | `LLM_PROVIDER` | Yes | `anthropic` or `openai` | Same | `fake` is allowed in tests and kind smoke only, and rejected when `APP_ENV=aws` |
 | `LLM_MODEL` | Yes | Engineer sets | Same | Never hardcoded |
 | `ANTHROPIC_API_KEY` / `OPENAI_API_KEY` | The one matching `LLM_PROVIDER`; none when `fake` | Engineer sets | Secrets Manager |  |
@@ -414,7 +419,7 @@ Cube defines every metric once over the dbt marts and is the agent's only route 
 
 | Metric | Definition | Type | Grain | Unit | Maturity days |
 | --- | --- | --- | --- | --- | --- |
-| `gmv` | Sum of item price for non-cancelled orders | Sum | Item | BRL (also USD) | 0 |
+| `gmv` | Sum of item price for non-cancelled orders (cancelled = `canceled` or `unavailable`, decision 0003) | Sum | Item | BRL (also USD) | 0 |
 | `revenue_incl_freight` | Item price plus freight, non-cancelled orders | Sum | Item | BRL (also USD) | 0 |
 | `payments_collected` | Sum of payment value for non-cancelled orders | Sum | Payment | BRL | 0 |
 | `orders` | Count of orders (all statuses) | Count | Order | Orders | 0 |
@@ -587,10 +592,10 @@ Every pull request runs the full pipeline on a small committed fixture dataset, 
 
 ### Fixture dataset and oracle
 
-- `data/fixtures/` holds about 1,500 orders purchased over 120 days, plus a 60-day tail in which their later lifecycle events land. That gives at least 10 weekly comparison periods for significance tests. `make fixtures` samples it with a fixed seed from the full download.
+- `data/fixtures/` holds 2,000 orders purchased over 150 days (2018-02-01 to 2018-06-30; decision 0003), plus a 60-day tail in which their later lifecycle events land. That gives at least 10 weekly comparison periods for significance tests. `make fixtures` samples it with a fixed seed from the full download.
 - The sample deliberately includes every documented quirk:
   - a repeated `review_id`
-  - an order with no payment
+  - an order with no payment (not possible in any replay window; see decision 0003)
   - an untranslated category and a product with no category
   - a `delivered` order with no delivery date
   - each non-delivered final status

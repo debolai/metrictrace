@@ -17,6 +17,7 @@ dist/
 
 # Data (fixtures under data/fixtures/ are committed)
 data/raw_download/
+data/api_cache/
 *.duckdb
 *.duckdb.wal
 

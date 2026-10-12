@@ -1,0 +1,11 @@
+The files under data/fixtures/olist/ are a sample of the "Brazilian E-Commerce Public Dataset by Olist"
+(https://www.kaggle.com/datasets/olistbr/brazilian-ecommerce), published by Olist and licensed under
+Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International (CC BY-NC-SA 4.0):
+https://creativecommons.org/licenses/by-nc-sa/4.0/
+
+Changes: rows were sampled (seeded, deterministic) by tests/fixtures/build_fixtures.py and geolocation was
+limited to five rows per zip-code prefix. This sample is redistributed under the same licence and may be
+used for non-commercial purposes only.
+
+data/fixtures/api/ holds recorded responses from the Frankfurter API (European Central Bank reference
+rates) and the Nager.Date API, kept so tests run without network access.
