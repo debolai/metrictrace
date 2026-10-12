@@ -4,13 +4,17 @@
 UV_RUN := uv run --frozen
 
 .DEFAULT_GOAL := help
-.PHONY: help install hooks lint format check-env test-unit
+.PHONY: help install hooks lint format check-env test-unit duckdb-extensions up down clean-lake test-lake
 
 help: ## List available targets
 	@grep -E '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  %-14s %s\n", $$1, $$2}'
 
-install: ## Install pinned dependencies from uv.lock
+install: ## Install pinned dependencies from uv.lock and the DuckDB extensions
 	uv sync --frozen
+	$(MAKE) duckdb-extensions
+
+duckdb-extensions: ## Download DuckDB extensions once; run time never downloads
+	$(UV_RUN) python -c "from metrictrace.lake import install_extensions; install_extensions()"
 
 hooks: install ## Install the pre-commit hooks
 	$(UV_RUN) pre-commit install
@@ -34,3 +38,16 @@ check-env: ## Validate configuration without starting anything
 
 test-unit: ## Unit tests with coverage
 	$(UV_RUN) pytest tests/unit --cov --cov-report=term-missing
+
+up: ## Start the local stack and create the lake bucket
+	docker compose up -d --wait rustfs
+	docker compose run --rm lake-init
+
+down: ## Stop the local stack (lake data is kept)
+	docker compose down
+
+clean-lake: ## Stop the stack and DELETE all local lake data
+	docker compose down --volumes
+
+test-lake: ## Lake unit tests plus integration tests against the running stack
+	$(UV_RUN) pytest tests/unit/test_lake.py tests/integration/test_lake.py

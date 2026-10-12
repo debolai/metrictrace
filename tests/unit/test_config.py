@@ -6,50 +6,8 @@ from pathlib import Path
 import pytest
 
 from metrictrace import config
-from metrictrace.config import ConfigError, Settings, load_settings
-
-VALID_LOCAL = {
-    "APP_ENV": "local",
-    "LAKE_BUCKET": "metrictrace-lake",
-    "LAKE_ENDPOINT_URL": "http://minio:9000",
-    "MINIO_ROOT_USER": "minio",
-    "MINIO_ROOT_PASSWORD": "minio-secret-value",
-    "AWS_REGION": "us-east-1",
-    "CUBE_API_URL": "http://cube:4000",
-    "API_URL": "http://api:8000",
-    "LLM_PROVIDER": "anthropic",
-    "LLM_MODEL": "test-model",
-    "ANTHROPIC_API_KEY": "anthropic-secret-value",
-    "CUBE_API_SECRET": "cube-secret-value",
-    "API_BEARER_TOKEN": "bearer-secret-value",
-    "SIM_START_DATE": "2017-01-01",
-    "SIM_END_DATE": "2018-08-31",
-}
-
-AWS_OVERRIDES = {
-    "APP_ENV": "aws",
-    "LAKE_ENDPOINT_URL": "",
-    "MINIO_ROOT_USER": "",
-    "MINIO_ROOT_PASSWORD": "",
-    "AWS_REGION": "eu-west-1",
-    "GLUE_DATABASE": "metrictrace",
-    "ATHENA_WORKGROUP": "metrictrace",
-    "ATHENA_OUTPUT_LOCATION": "s3://metrictrace-athena-results/",
-    "GLUE_CRAWLER_NAME": "metrictrace-marts",
-}
-
-
-@pytest.fixture
-def env(monkeypatch: pytest.MonkeyPatch) -> pytest.MonkeyPatch:
-    """Start every test from an environment containing none of the settings."""
-    for name in Settings.model_fields:
-        monkeypatch.delenv(name.upper(), raising=False)
-    return monkeypatch
-
-
-def apply(monkeypatch: pytest.MonkeyPatch, values: dict[str, str]) -> None:
-    for name, value in values.items():
-        monkeypatch.setenv(name, value)
+from metrictrace.config import ConfigError, load_settings
+from tests.conftest import AWS_OVERRIDES, VALID_LOCAL, apply
 
 
 def problems_for(monkeypatch: pytest.MonkeyPatch, values: dict[str, str]) -> str:
@@ -81,10 +39,10 @@ def test_every_missing_variable_is_named_at_once(env: pytest.MonkeyPatch) -> Non
     values = {
         k: v
         for k, v in VALID_LOCAL.items()
-        if k not in {"LAKE_BUCKET", "CUBE_API_SECRET", "MINIO_ROOT_USER", "ANTHROPIC_API_KEY"}
+        if k not in {"LAKE_BUCKET", "CUBE_API_SECRET", "RUSTFS_ACCESS_KEY", "ANTHROPIC_API_KEY"}
     }
     message = problems_for(env, values)
-    for name in ("LAKE_BUCKET", "CUBE_API_SECRET", "MINIO_ROOT_USER", "ANTHROPIC_API_KEY"):
+    for name in ("LAKE_BUCKET", "CUBE_API_SECRET", "RUSTFS_ACCESS_KEY", "ANTHROPIC_API_KEY"):
         assert name in message
 
 
@@ -98,7 +56,7 @@ def test_aws_requires_catalog_settings(env: pytest.MonkeyPatch) -> None:
     message = problems_for(env, values)
     assert "GLUE_DATABASE" in message
     assert "GLUE_CRAWLER_NAME" in message
-    assert "MINIO_ROOT_USER" not in message
+    assert "RUSTFS_ACCESS_KEY" not in message
 
 
 def test_fake_llm_is_rejected_on_aws(env: pytest.MonkeyPatch) -> None:
@@ -135,7 +93,7 @@ def test_replay_window_must_be_ordered(env: pytest.MonkeyPatch) -> None:
 
 
 def test_endpoint_must_be_empty_on_aws(env: pytest.MonkeyPatch) -> None:
-    values = {**VALID_LOCAL, **AWS_OVERRIDES, "LAKE_ENDPOINT_URL": "http://minio:9000"}
+    values = {**VALID_LOCAL, **AWS_OVERRIDES, "LAKE_ENDPOINT_URL": "http://localhost:9000"}
     assert "LAKE_ENDPOINT_URL" in problems_for(env, values)
 
 
@@ -154,7 +112,7 @@ def test_secrets_never_appear_in_summary_or_repr(env: pytest.MonkeyPatch) -> Non
     settings = load_settings(env_file=None)
     rendered = repr(settings) + str(settings.safe_summary())
     for name, value in VALID_LOCAL.items():
-        if "SECRET" in name or "PASSWORD" in name or "KEY" in name or "TOKEN" in name:
+        if name.endswith(("_SECRET", "_SECRET_KEY", "_API_KEY", "_TOKEN")):
             assert value not in rendered
     assert settings.safe_summary()["API_BEARER_TOKEN"] == "<set>"
     assert settings.safe_summary()["OPENAI_API_KEY"] == "<not set>"

@@ -24,7 +24,7 @@ LogLevel = Literal["DEBUG", "INFO", "WARNING", "ERROR"]
 
 DEFAULT_ENV_FILE = Path(".env")
 
-_REQUIRED_WHEN_LOCAL = ("lake_endpoint_url", "minio_root_user", "minio_root_password")
+_REQUIRED_WHEN_LOCAL = ("lake_endpoint_url", "rustfs_access_key", "rustfs_secret_key")
 _REQUIRED_WHEN_AWS = (
     "glue_database",
     "athena_workgroup",
@@ -59,8 +59,8 @@ class Settings(BaseSettings):
     # Lake
     lake_bucket: str
     lake_endpoint_url: str | None = None
-    minio_root_user: str | None = None
-    minio_root_password: SecretStr | None = None
+    rustfs_access_key: str | None = None
+    rustfs_secret_key: SecretStr | None = None
     aws_region: str
     aws_profile: str | None = None
 

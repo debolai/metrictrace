@@ -1,6 +1,6 @@
 # MetricTrace — Build Specification (v2)
 
-Oct 12, 2026 · @Debola · Revision of v1. Every change from v1 is listed in **Appendix: Changes from v1**.
+Oct 12, 2026 · @Debola · Revision of v1. Every change from v1 is listed in **Appendix: Changes from v1**. Later deviations are recorded in `docs/decisions/` (0002: RustFS replaces MinIO).
 
 ## Overview
 
@@ -38,7 +38,7 @@ MetricTrace is a governed metrics platform for an e-commerce marketplace. It inc
 
 ## Architecture and key decisions
 
-The pipeline uses one SQL dialect (DuckDB) everywhere, so the SQL that CI tests is exactly the SQL that runs on AWS. Object storage is MinIO locally and S3 on AWS, both accessed through the same S3 API.
+The pipeline uses one SQL dialect (DuckDB) everywhere, so the SQL that CI tests is exactly the SQL that runs on AWS. Object storage is RustFS locally and S3 on AWS, both accessed through the same S3 API.
 
 ### Component flow
 
@@ -49,7 +49,7 @@ flowchart TB
     FX[Frankfurter FX API]
     H[Nager.Date holidays API]
   end
-  subgraph Lake["Lake (MinIO / S3)"]
+  subgraph Lake["Lake (RustFS / S3)"]
     RAW[raw/ append-only Parquet]
     Q[quarantine/]
     META[_meta/ drops, dbt artifacts, sim clock]
@@ -78,7 +78,7 @@ Data flows top to bottom. The agent never touches raw data or writes SQL, and ev
 1. **Ingest:** Python jobs land Olist file drops and API data (FX rates, public holidays) in the raw zone as Parquet. Every drop writes a `_meta` record, including drops with zero rows.
 2. **Transform:** dbt (dbt-duckdb) reads raw Parquet, runs tests, and writes marts back to the lake as Parquet.
 3. **Publish:** dbt artifacts (manifest, run results, sources) are saved to the lake for the agent. On AWS, the publish step then starts the Glue crawler, which registers the marts.
-4. **Serve:** Cube exposes the semantic layer over the marts. Locally it queries DuckDB over MinIO; on AWS it queries Athena over Glue tables.
+4. **Serve:** Cube exposes the semantic layer over the marts. Locally it queries DuckDB over RustFS; on AWS it queries Athena over Glue tables.
 5. **Reason:** the LangGraph agent calls typed tools: Cube queries, the investigation engine, dbt artifacts and data-health checks.
 6. **Deliver:** FastAPI serves the agent, and Streamlit provides the chat UI.
 
@@ -86,11 +86,11 @@ Data flows top to bottom. The agent never touches raw data or writes SQL, and ev
 
 | Concern | Local | AWS |
 | --- | --- | --- |
-| Object storage | MinIO | S3 (versioned, encrypted, noncurrent versions expire) |
+| Object storage | RustFS | S3 (versioned, encrypted, noncurrent versions expire) |
 | Lake layout | Parquet, Hive-style date partitions | Same |
 | Transform engine | dbt-duckdb | dbt-duckdb in a Kubernetes Job |
 | Catalog | None needed | Glue Data Catalog via a crawler (one table per `marts/<model>/` folder) |
-| Semantic layer | Cube, DuckDB driver over MinIO | Cube, Athena driver |
+| Semantic layer | Cube, DuckDB driver over RustFS | Cube, Athena driver |
 | Orchestration | `make pipeline` and Docker Compose | Kubernetes CronJob (`concurrencyPolicy: Forbid`) |
 | Agent | LangGraph; Anthropic or OpenAI via LangChain | Same |
 | Agent state | In-memory checkpointer (1 replica, 1 worker); audit log in the lake | Same, in S3 |
@@ -187,7 +187,7 @@ metrictrace/
 ├── deploy/
 │   ├── docker/              # Dockerfiles: app, pipeline, ui, cube
 │   ├── helm/metrictrace/    # chart + values-local.yaml + values-aws.yaml
-│   └── kind/                # kind cluster config, MinIO manifest
+│   └── kind/                # kind cluster config, RustFS manifest
 ├── infra/terraform/         # bootstrap/ (state bucket), envs/aws/, modules/
 ├── .github/workflows/       # ci.yml, cd.yml, nightly-evals.yml
 ├── docker-compose.yml
@@ -216,9 +216,9 @@ One variable, `APP_ENV=local|aws`, selects the environment. The engineer fills i
 | `APP_ENV` | Yes | `local` | `aws` | Switches lake, Cube driver and secrets source |
 | `LOG_LEVEL` | No | `INFO` | `INFO` |  |
 | `LAKE_BUCKET` | Yes | `metrictrace-lake` | Terraform output | One bucket; zones are prefixes |
-| `LAKE_ENDPOINT_URL` | Local only | `http://minio:9000` | Empty | Empty means real AWS S3 |
-| `MINIO_ROOT_USER`, `MINIO_ROOT_PASSWORD` | Local only | Engineer sets | Not used | Also used as the S3 keys for MinIO |
-| `AWS_REGION` | Yes | `us-east-1` (required by DuckDB and s3fs even for MinIO) | e.g. `eu-west-1` |  |
+| `LAKE_ENDPOINT_URL` | Local only | `http://localhost:9000` (Compose overrides it to `http://rustfs:9000` inside containers) | Empty | Empty means real AWS S3 |
+| `RUSTFS_ACCESS_KEY`, `RUSTFS_SECRET_KEY` | Local only | Engineer sets | Not used | RustFS admin credentials, also used as its S3 keys |
+| `AWS_REGION` | Yes | `us-east-1` (required by DuckDB and s3fs even for RustFS) | e.g. `eu-west-1` |  |
 | `AWS_PROFILE` | AWS, laptop only | Not used | Engineer's profile | Pods use IRSA instead |
 | `GLUE_DATABASE` | AWS | Not used | Terraform output |  |
 | `ATHENA_WORKGROUP` | AWS | Not used | Terraform output |  |
@@ -315,7 +315,7 @@ Olist stores only each order's final status and its milestone timestamps. The re
 - **API resilience:** retries with exponential backoff (tenacity), a 10-second timeout and cached responses. CI uses recorded responses, never the network.
 - **CLI:** `metrictrace ingest --date 2017-03-01`, `--from/--to` for backfills, `--source olist|fx|holidays|all`.
 - **DuckDB extensions:** `httpfs` and `aws` are installed when the image is built, and in a `make` setup step locally, so nothing is downloaded at run time.
-- **Local infrastructure:** Docker Compose runs MinIO plus a `minio-init` container that creates the bucket.
+- **Local infrastructure:** Docker Compose runs RustFS plus a `lake-init` container (AWS CLI) that creates the bucket.
 
 ### Done when
 
@@ -331,7 +331,7 @@ dbt-duckdb reads raw Parquet straight from the lake and writes marts back as Par
 
 ### Profile and sources
 
-- `profiles.yml` lives in `dbt/` and reads every value with `env_var()`. The `local` target sets the MinIO endpoint, path-style URLs and no SSL. The `aws` target uses the AWS credential chain so IRSA works.
+- `profiles.yml` lives in `dbt/` and reads every value with `env_var()`. The `local` target sets the RustFS endpoint, path-style URLs and no SSL. The `aws` target uses the AWS credential chain so IRSA works.
 - Sources are declared as external Parquet globs with Hive partitioning, e.g. `raw/olist/orders/*/*.parquet`, which exposes `drop_date` as a column.
 - **Liveness freshness:** `dbt source freshness` uses `_ingested_at` against wall-clock time (warn after 1 day, error after 2). This shows whether the pipeline is running.
 - **Completeness in business time:** `mart_data_health_daily` compares the expected drops (one per daily source per simulated day) with the `_meta` records. The investigation engine uses this, not wall-clock freshness, to judge a historical period.
@@ -400,7 +400,7 @@ Cube defines every metric once over the dbt marts and is the agent's only route 
 ### Environment-neutral model files
 
 - Cube YAML models in `cube/model/` reference tables through a Jinja function, e.g. `sql: "{{ mart('fct_orders') }}"`, defined in `cube/model/globals.py`.
-- When `APP_ENV=local`, the function returns `SELECT * FROM read_parquet('s3://<bucket>/marts/fct_orders/*.parquet')`, and Cube's DuckDB driver reads MinIO through its S3 settings.
+- When `APP_ENV=local`, the function returns `SELECT * FROM read_parquet('s3://<bucket>/marts/fct_orders/*.parquet')`, and Cube's DuckDB driver reads RustFS through its S3 settings.
 - When `APP_ENV=aws`, it returns `SELECT * FROM <GLUE_DATABASE>.fct_orders`, and the Athena driver runs the query.
 - Measure and dimension SQL stays plain (column names, `CASE`, arithmetic), so Cube can generate correct SQL for both engines.
 - **Caching:** every cube's `refresh_key` reads the latest dbt run id (`_meta/dbt/latest.json`, exposed through a tiny `dbt_runs` mart), so results refresh after each pipeline run or incident.
@@ -610,7 +610,7 @@ Every pull request runs the full pipeline on a small committed fixture dataset, 
 | --- | --- | --- | --- |
 | Unit | Functions behave on hand-written inputs, including lifecycle reconstruction and the verdict matrix | pytest | Every PR |
 | Property-based | Contributions sum to the total change for every metric × allowed dimension; shift-share parts sum to ΔR; the number extractor finds every number; re-ingesting any old date leaves current state unchanged | Hypothesis | Every PR |
-| Ingestion contracts | Bad rows are quarantined; replay is idempotent; zero-row drops are recorded | pytest, pandera, MinIO container | Every PR |
+| Ingestion contracts | Bad rows are quarantined; replay is idempotent; zero-row drops are recorded | pytest, pandera, RustFS container | Every PR |
 | dbt | Keys, relationships, logic, reconciliation, schema; severities as specified | `dbt build` on fixture | Every PR |
 | Semantic parity | Each Cube metric equals the oracle's golden value at both as-of dates | pytest against Cube | Every PR |
 | Incident scenarios | Each fault reaches an absolute z-score of at least 2 and is caught by the expected layer; the engine gives the expected verdict | pytest | Every PR |
@@ -657,7 +657,7 @@ The same images and Helm chart run on Docker Compose, a local kind cluster and E
 | `metrictrace-ui` | Streamlit | Calls the API only |
 | `metrictrace-cube` | Official Cube image (pinned) plus `cube/model/` | Models baked in for reproducibility |
 
-Docker Compose runs MinIO, `minio-init`, Cube, API and UI. The pipeline runs on demand under a `jobs` profile.
+Docker Compose runs RustFS, `lake-init`, Cube, API and UI. The pipeline runs on demand under a `jobs` profile.
 
 ### Kubernetes (one Helm chart)
 
@@ -666,7 +666,7 @@ Docker Compose runs MinIO, `minio-init`, Cube, API and UI. The pipeline runs on 
 - **Job:** a one-off backfill, started with `make k8s-backfill FROM=... TO=...`.
 - **ServiceAccounts:** separate ones for pipeline, cube and api, each annotated with its IRSA role on AWS.
 - **Config:** a ConfigMap for settings. Secrets come from a Kubernetes Secret created outside the chart.
-- `values-local.yaml`: images loaded into kind, MinIO deployed from `deploy/kind/`, access by port-forward.
+- `values-local.yaml`: images loaded into kind, RustFS deployed from `deploy/kind/`, access by port-forward.
 - `values-aws.yaml`: ECR images, and LoadBalancer Services for api and ui limited to the engineer's IP with `loadBalancerSourceRanges`.
 
 ### AWS infrastructure (Terraform)
@@ -690,7 +690,7 @@ Docker Compose runs MinIO, `minio-init`, Cube, API and UI. The pipeline runs on 
 1. **`ci.yml`** on every pull request and push:
    - lint and type checks
    - unit and property tests
-   - the integration stack: MinIO, ingest fixture, dbt build, Cube parity, incident scenarios, end-to-end
+   - the integration stack: RustFS, ingest fixture, dbt build, Cube parity, incident scenarios, end-to-end
    - Docker builds with Trivy scans, plus `pip-audit`
    - `helm lint` plus a kind smoke install
    - `terraform fmt`, `validate` and `tflint` (no AWS credentials needed)
@@ -712,7 +712,7 @@ Build one phase at a time, and do not start the next until the phase's gate comm
 | Phase | Build | Gate (must pass) |
 | --- | --- | --- |
 | 0 | Repo scaffold, `pyproject.toml`, Makefile, `config.py`, `.env.example`, pre-commit, lint job in `ci.yml`, `docs/decisions/0001-spec-v2.md` | `make lint` and `make check-env` |
-| 1 | Docker Compose with MinIO, `LakeClient`, DuckDB connection factory (extensions installed offline) | `make up` then `make test-lake` |
+| 1 | Docker Compose with RustFS, `LakeClient`, DuckDB connection factory (extensions installed offline) | `make up` then `make test-lake` |
 | 2 | Ingestion, lifecycle reconstruction, contracts, replay, fixtures, oracle and golden values | `make test-ingestion` (including lifecycle and re-ingest tests) and `make fixtures` |
 | 3 | dbt project with the severity policy and `mart_data_health_daily` | `make dbt-build` on fixture data |
 | 4 | Cube models, `globals.py`, refresh key, metric catalog | `make test-semantic` (golden parity at both as-of dates, meta and decomposition-rule test) |
@@ -744,7 +744,7 @@ The engineer supplies credentials and runs a handful of `make` targets; everythi
 ### Local setup
 
 - [ ] Install Docker, `uv`, kind, kubectl and Helm.
-- [ ] Copy `.env.example` to `.env`. Set the MinIO credentials, `LLM_PROVIDER`, `LLM_MODEL`, the matching LLM API key, `CUBE_API_SECRET` and `API_BEARER_TOKEN`.
+- [ ] Copy `.env.example` to `.env`. Set the RustFS credentials, `LLM_PROVIDER`, `LLM_MODEL`, the matching LLM API key, `CUBE_API_SECRET` and `API_BEARER_TOKEN`.
 - [ ] Set `KAGGLE_USERNAME` and `KAGGLE_KEY`, or download the Olist zip into `data/raw_download/`.
 - [ ] Run `make check-env`, `make up`, `make backfill FROM=2017-01-01 TO=2017-12-31`, then `make dbt-build`.
 - [ ] Open the UI at `http://localhost:8501`.
