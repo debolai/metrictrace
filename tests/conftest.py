@@ -1,5 +1,10 @@
 from __future__ import annotations
 
+import ipaddress
+import json
+import socket
+from pathlib import Path
+
 import pytest
 
 from metrictrace.config import Settings
@@ -46,3 +51,37 @@ def env(monkeypatch: pytest.MonkeyPatch) -> pytest.MonkeyPatch:
 def apply(monkeypatch: pytest.MonkeyPatch, values: dict[str, str]) -> None:
     for name, value in values.items():
         monkeypatch.setenv(name, value)
+
+
+FIXTURES = Path(__file__).resolve().parents[1] / "data" / "fixtures"
+FIXTURE_MANIFEST = json.loads((FIXTURES / "fixture.json").read_text())
+
+
+def fixture_settings_env() -> dict[str, str]:
+    """Settings that replay the committed fixture with recorded API responses, offline."""
+    return {
+        **VALID_LOCAL,
+        "OLIST_SOURCE_PATH": str(FIXTURES / "olist"),
+        "API_CACHE_DIR": str(FIXTURES / "api"),
+        "API_OFFLINE": "true",
+        "SIM_START_DATE": FIXTURE_MANIFEST["sim_start_date"],
+        "SIM_END_DATE": FIXTURE_MANIFEST["sim_end_date"],
+    }
+
+
+_LOOPBACK = {"localhost", "127.0.0.1", "::1"}
+
+
+@pytest.fixture(autouse=True)
+def no_internet(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Tests may reach local services (RustFS) but never the internet."""
+    real_connect = socket.socket.connect
+
+    def guarded_connect(self: socket.socket, address: object) -> None:
+        if self.family in (socket.AF_INET, socket.AF_INET6):
+            host = str(address[0]) if isinstance(address, tuple) else str(address)
+            if host not in _LOOPBACK and not ipaddress.ip_address(host).is_loopback:
+                raise RuntimeError(f"tests must not use the network (tried {address})")
+        real_connect(self, address)  # type: ignore[arg-type]
+
+    monkeypatch.setattr(socket.socket, "connect", guarded_connect)

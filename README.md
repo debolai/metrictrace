@@ -12,9 +12,12 @@ make install                 # pinned dependencies + DuckDB extensions (one-time
 cp .env.example .env         # then fill in the values marked "set me"
 make check-env               # validate configuration without starting anything
 make up                      # RustFS object store + lake bucket (console: http://localhost:9001)
+make download-data           # public Olist dataset into data/raw_download (no Kaggle account needed)
+make backfill FROM=2017-01-01 TO=2017-01-31   # replay daily drops into the lake
 make lint                    # ruff, mypy --strict, sqlfluff
 make test-unit               # no network, no running services
 make test-lake               # lake integration tests against the running stack
+make test-ingestion          # ingestion tests, replaying the committed fixture offline
 ```
 
 `make down` stops the stack and keeps the data; `make clean-lake` deletes the local lake.

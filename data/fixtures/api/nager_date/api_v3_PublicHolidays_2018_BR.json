@@ -1,0 +1,188 @@
+[
+ {
+  "counties": null,
+  "countryCode": "BR",
+  "date": "2018-01-01",
+  "fixed": false,
+  "global": true,
+  "launchYear": null,
+  "localName": "Confraterniza\u00e7\u00e3o Universal",
+  "name": "New Year's Day",
+  "types": [
+   "Public"
+  ]
+ },
+ {
+  "counties": null,
+  "countryCode": "BR",
+  "date": "2018-02-12",
+  "fixed": false,
+  "global": true,
+  "launchYear": null,
+  "localName": "Carnaval",
+  "name": "Carnival",
+  "types": [
+   "Bank",
+   "Optional"
+  ]
+ },
+ {
+  "counties": null,
+  "countryCode": "BR",
+  "date": "2018-02-13",
+  "fixed": false,
+  "global": true,
+  "launchYear": null,
+  "localName": "Carnaval",
+  "name": "Carnival",
+  "types": [
+   "Bank",
+   "Optional"
+  ]
+ },
+ {
+  "counties": null,
+  "countryCode": "BR",
+  "date": "2018-03-30",
+  "fixed": false,
+  "global": true,
+  "launchYear": null,
+  "localName": "Sexta-feira Santa",
+  "name": "Good Friday",
+  "types": [
+   "Public"
+  ]
+ },
+ {
+  "counties": null,
+  "countryCode": "BR",
+  "date": "2018-04-01",
+  "fixed": false,
+  "global": true,
+  "launchYear": null,
+  "localName": "Domingo de P\u00e1scoa",
+  "name": "Easter Sunday",
+  "types": [
+   "Public"
+  ]
+ },
+ {
+  "counties": null,
+  "countryCode": "BR",
+  "date": "2018-04-21",
+  "fixed": false,
+  "global": true,
+  "launchYear": null,
+  "localName": "Dia de Tiradentes",
+  "name": "Tiradentes",
+  "types": [
+   "Public"
+  ]
+ },
+ {
+  "counties": null,
+  "countryCode": "BR",
+  "date": "2018-05-01",
+  "fixed": false,
+  "global": true,
+  "launchYear": null,
+  "localName": "Dia do Trabalhador",
+  "name": "Labour Day",
+  "types": [
+   "Public"
+  ]
+ },
+ {
+  "counties": null,
+  "countryCode": "BR",
+  "date": "2018-05-31",
+  "fixed": false,
+  "global": true,
+  "launchYear": null,
+  "localName": "Corpus Christi",
+  "name": "Corpus Christi",
+  "types": [
+   "Public"
+  ]
+ },
+ {
+  "counties": [
+   "BR-SP"
+  ],
+  "countryCode": "BR",
+  "date": "2018-07-09",
+  "fixed": false,
+  "global": false,
+  "launchYear": null,
+  "localName": "Revolu\u00e7\u00e3o Constitucionalista de 1932",
+  "name": "Constitutionalist Revolution of 1932",
+  "types": [
+   "Public"
+  ]
+ },
+ {
+  "counties": null,
+  "countryCode": "BR",
+  "date": "2018-09-07",
+  "fixed": false,
+  "global": true,
+  "launchYear": null,
+  "localName": "Dia da Independ\u00eancia",
+  "name": "Independence Day",
+  "types": [
+   "Public"
+  ]
+ },
+ {
+  "counties": null,
+  "countryCode": "BR",
+  "date": "2018-10-12",
+  "fixed": false,
+  "global": true,
+  "launchYear": null,
+  "localName": "Nossa Senhora Aparecida",
+  "name": "Our Lady of Aparecida",
+  "types": [
+   "Public"
+  ]
+ },
+ {
+  "counties": null,
+  "countryCode": "BR",
+  "date": "2018-11-02",
+  "fixed": false,
+  "global": true,
+  "launchYear": null,
+  "localName": "Dia de Finados",
+  "name": "All Souls' Day",
+  "types": [
+   "Public"
+  ]
+ },
+ {
+  "counties": null,
+  "countryCode": "BR",
+  "date": "2018-11-15",
+  "fixed": false,
+  "global": true,
+  "launchYear": null,
+  "localName": "Proclama\u00e7\u00e3o da Rep\u00fablica",
+  "name": "Republic Proclamation Day",
+  "types": [
+   "Public"
+  ]
+ },
+ {
+  "counties": null,
+  "countryCode": "BR",
+  "date": "2018-12-25",
+  "fixed": false,
+  "global": true,
+  "launchYear": null,
+  "localName": "Natal",
+  "name": "Christmas Day",
+  "types": [
+   "Public"
+  ]
+ }
+]

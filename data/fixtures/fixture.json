@@ -1,0 +1,55 @@
+{
+  "seed": 20180201,
+  "purchase_window": [
+    "2018-02-01",
+    "2018-06-30"
+  ],
+  "sim_start_date": "2018-02-01",
+  "sim_end_date": "2018-08-29",
+  "as_of_dates": [
+    "2018-04-30",
+    "2018-08-29"
+  ],
+  "fx_outage_candidates": [
+    [
+      "2018-05-11",
+      "2018-05-18"
+    ],
+    [
+      "2018-06-07",
+      "2018-06-14"
+    ]
+  ],
+  "rows": {
+    "orders": 2000,
+    "order_items": 2286,
+    "order_payments": 2093,
+    "order_reviews": 2009,
+    "customers": 2000,
+    "sellers": 714,
+    "products": 1605,
+    "product_category_name_translation": 71,
+    "geolocation": 10906
+  },
+  "quirk_orders": {
+    "delivered_without_date": 3,
+    "final_status_approved": 0,
+    "final_status_canceled": 4,
+    "final_status_created": 1,
+    "final_status_invoiced": 4,
+    "final_status_processing": 4,
+    "final_status_shipped": 4,
+    "final_status_unavailable": 4,
+    "milestone_before_purchase": 0,
+    "null_category": 3,
+    "repeat_customer": 31,
+    "review_before_purchase": 3,
+    "shared_review_id": 6,
+    "untranslated_category": 3
+  },
+  "known_gaps": {
+    "order_without_payment": "The only Olist order without payments was purchased in 2016-09, before any replay window, so it never appears in a replay.",
+    "final_status_approved": "Only 2 orders end as 'approved', both purchased in 2017.",
+    "milestone_before_purchase": "Only 2 orders have a milestone on an earlier day than purchase (2018-07 and 2018-08); 164 more are same-day, earlier-hour."
+  }
+}

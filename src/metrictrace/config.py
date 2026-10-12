@@ -75,8 +75,15 @@ class Settings(BaseSettings):
     api_url: str
 
     # Source data
+    olist_source_path: Path = Path("data/raw_download")
     kaggle_username: str | None = None
     kaggle_key: SecretStr | None = None
+
+    # Public APIs (no keys). Responses are cached on disk; offline mode reads only the cache.
+    fx_api_base_url: str = "https://api.frankfurter.dev/v1"
+    holidays_api_base_url: str = "https://date.nager.at"
+    api_cache_dir: Path = Path("data/api_cache")
+    api_offline: bool = False
 
     # LLM
     llm_provider: LlmProvider
@@ -133,7 +140,13 @@ class Settings(BaseSettings):
             problems.append("LAKE_ENDPOINT_URL must be empty when APP_ENV=aws (real S3 is used)")
         if self.sim_start_date > self.sim_end_date:
             problems.append("SIM_START_DATE must not be after SIM_END_DATE")
-        for name in ("cube_api_url", "api_url", "lake_endpoint_url"):
+        for name in (
+            "cube_api_url",
+            "api_url",
+            "lake_endpoint_url",
+            "fx_api_base_url",
+            "holidays_api_base_url",
+        ):
             value = getattr(self, name)
             if value and not value.startswith(("http://", "https://")):
                 problems.append(f"{name.upper()} must start with http:// or https://")
